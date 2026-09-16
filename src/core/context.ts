@@ -1,0 +1,281 @@
+import type { Actor } from './actor';
+import { VAR } from './actor';
+import type {
+  AttackDesc,
+  BattleEvent,
+  EventInput,
+  HitResult,
+  MarkState,
+  Outcome,
+  RoundPhase,
+  Side,
+  StatusName,
+} from './types';
+import type { Rng } from './rng';
+
+/** 封锁范围：action = 封锁全部行动；active = 仅阻止主动技能 */
+export type BlockScope = 'action' | 'active';
+
+// ============================================================
+// Ctx 接口：角色钩子可见的世界入口（实现 = BattleCtx）
+// 角色钩子永不直接摸引擎或对方面板，一切通过 Ctx
+// ============================================================
+export interface Ctx {
+  readonly round: number;
+  readonly phase: RoundPhase;
+  readonly finished: boolean; // 战斗已分出胜负，后续攻击空转
+  readonly rng: Rng;
+  readonly p1: Actor;
+  readonly p2: Actor;
+  readonly events: readonly BattleEvent[];
+  self: Actor; // 行动方（引擎每次行动前经 beginAction 设置）
+  target: Actor; // 受击方
+
+  beginAction(actor: Actor): void;
+  sideOf(a: Actor): Side;
+  emit(e: EventInput): void;
+  emitFor(actor: Actor, e: EventInput): void; // 自动补 side
+
+  // 攻击协议（kind 矩阵集中实现）
+  attack(desc: AttackDesc): HitResult;
+  segment(base: number, label: string): HitResult; // 效果段：不判闪避、不触发攻击方钩子
+  flat(base: number, label: string): HitResult; // 无视防御，护盾照吸
+  pierce(base: number, label: string): HitResult; // 真伤：无视防御护盾，最低 1
+
+  // 资源与状态施加辅助
+  heal(amount: number, who?: Actor): void;
+  shieldGain(value: number): void;
+  /** 封锁类状态合并施加（眩晕/麻痹/禁锢等同类状态）：调用方给状态名与封锁范围 */
+  block(target: Actor, status: StatusName, rounds: number, scope: BlockScope): void;
+  /** 限时降防（刷新制，只降目标——约定 #11）；由结算段过期清除 */
+  defDown(target: Actor, rounds: number, value: number): void;
+  applyMark(label: string, duration: number, value?: number): void; // 约定 #1 集中换算
+  opponentMark(label: string): MarkState | undefined;
+
+  // 死亡处理（单一检查点）
+  resolveDeaths(): Outcome | null;
+}
+
+// ============================================================
+// BattleCtx —— Ctx 实现
+// ============================================================
+export class BattleCtx implements Ctx {
+  round = 0;
+  phase: RoundPhase = 'roundStart';
+  private _finished = false;
+  private _outcome: Outcome | null = null;
+  private depth = 0; // 反击再入护栏
+  readonly events: BattleEvent[] = [];
+
+  /** 每次行动前由引擎设置 */
+  self: Actor;
+  target: Actor;
+
+  constructor(
+    readonly rng: Rng,
+    readonly p1: Actor,
+    readonly p2: Actor,
+  ) {
+    this.self = p1;
+    this.target = p2;
+  }
+
+  get finished(): boolean {
+    return this._finished;
+  }
+
+  beginAction(actor: Actor): void {
+    this.self = actor;
+    this.target = actor === this.p1 ? this.p2 : this.p1;
+  }
+
+  sideOf(a: Actor): Side {
+    return a === this.p1 ? 'p1' : 'p2';
+  }
+
+  // ---------- 事件 ----------
+  emit(e: EventInput): void {
+    // 骨架事件可显式覆盖 round/phase；管线/角色事件自动补当前值
+    this.events.push({ round: this.round, phase: this.phase, ...e } as BattleEvent);
+  }
+
+  emitFor(actor: Actor, e: EventInput): void {
+    this.emit({ side: this.sideOf(actor), ...e });
+  }
+
+  // ---------- 攻击协议（核心，kind 矩阵集中实现） ----------
+  attack(desc: AttackDesc): HitResult {
+    return this.attackInternal(desc, false);
+  }
+
+  private attackInternal(desc: AttackDesc, isCounter: boolean): HitResult {
+    if (this._finished) return { missed: true };
+    const t = this.target;
+
+    // ① 攻击动作开始（segment 不发）
+    if (desc.kind === 'attack') {
+      this.emit({ type: 'attackStart', label: desc.label, side: this.sideOf(this.self) });
+    }
+
+    // ② 受击方闪避（仅 attack；反击以 segment 发起天然不吃闪避）
+    if (desc.kind === 'attack' && !t.beforeHit(this, desc)) {
+      this.emit({ type: 'dodge', label: desc.label, side: this.sideOf(t) });
+      // 幻象反击：segment 再入（吃防御可反杀），depth 护栏防双闪避角色无限递归
+      if (!isCounter && this.depth === 0) {
+        this.depth++;
+        // 交换行动方：闪避者成为反击方，原攻击方成为受击方
+        const prevSelf = this.self;
+        const prevTarget = this.target;
+        this.self = t;
+        this.target = prevSelf;
+        try {
+          this.attackInternal({ kind: 'segment', base: 20, label: '幻象反击' }, true);
+        } finally {
+          this.self = prevSelf;
+          this.target = prevTarget;
+          this.depth--;
+        }
+      }
+      return { missed: true };
+    }
+
+    // ③ 伤害计算（kind 矩阵；取整为 JS 四舍五入约定，测试显式断言）
+    const mult = desc.mult ?? 1;
+    let raw: number;
+    if (desc.kind === 'flat' || desc.kind === 'pierce') {
+      raw = Math.max(1, Math.round(desc.base * mult)); // 无视防御
+    } else {
+      raw = Math.max(1, Math.round(desc.base * mult) - t.curDef); // 吃防御
+    }
+
+    // ④ 护盾吸收（pierce 无视）
+    let dealt = raw;
+    let absorbed: number | undefined;
+    if (desc.kind !== 'pierce' && t.shield > 0) {
+      absorbed = Math.min(t.shield, raw);
+      t.shield -= absorbed;
+      dealt = raw - absorbed;
+    }
+
+    // ⑤ 受击方覆写点：只允许改数字，护盾/扣血路径留在协议内
+    dealt = Math.max(0, t.computeIncoming(this, desc, dealt));
+
+    // ⑥ 扣血 + 事件
+    t.hp -= dealt;
+    this.emit({
+      type: 'damage',
+      label: desc.label,
+      raw,
+      dealt,
+      absorbed,
+      hits: desc.hits,
+      trueDamage: desc.kind === 'pierce' ? dealt : undefined,
+      side: this.sideOf(t),
+    });
+
+    // ⑦ 致命伤 → 复活判定（复活回血由角色 onLethal 钩子自行设置）
+    let killed = false;
+    if (!t.isAlive) {
+      if (t.onLethal(this)) {
+        this.emit({ type: 'revive', hp: t.hp, side: this.sideOf(t) });
+      } else {
+        killed = true;
+      }
+    }
+
+    // ⑧ 受击后被动（死亡目标早退——击杀一击不触发，约定 #9）
+    if (!killed) t.onDamaged(this, desc);
+
+    // ⑨ 攻击方命中后（仅攻击动作）
+    if (desc.kind === 'attack' && !killed) this.self.onHit(this, desc);
+
+    // ⑩ 每段结束立即死亡处理
+    if (killed) this.resolveDeaths();
+    return { missed: false, dealt, killed };
+  }
+
+  // ---------- 快捷方式 ----------
+  segment(base: number, label: string): HitResult {
+    return this.attack({ kind: 'segment', base, label });
+  }
+  flat(base: number, label: string): HitResult {
+    return this.attack({ kind: 'flat', base, label });
+  }
+  pierce(base: number, label: string): HitResult {
+    return this.attack({ kind: 'pierce', base, label });
+  }
+
+  heal(amount: number, who: Actor = this.self): void {
+    const healed = Math.max(0, Math.min(amount, who.maxHp - who.hp));
+    who.hp += healed;
+    this.emitFor(who, { type: 'heal', value: healed });
+  }
+
+  shieldGain(value: number): void {
+    this.self.shield += value;
+    this.emitFor(this.self, { type: 'shieldGain', value });
+  }
+
+  // ---------- 状态施加（同类状态合并；约定 #1/#2 集中实现） ----------
+
+  /**
+   * 封锁类状态合并施加：调用方给状态名与封锁范围，计数器由 onSettle 逐回合 −1。
+   * - scope 'action' → stunRound：封锁全部行动（眩晕/麻痹/变身封锁…）
+   * - scope 'active' → noActRound：仅阻止主动技能（禁锢…）
+   * 刷新语义：重复施加重置为满时长（约定 #2），until 仅供事件展示
+   */
+  block(target: Actor, status: StatusName, rounds: number, scope: BlockScope): void {
+    if (scope === 'action') {
+      target.stunRound = rounds;
+    } else if (scope === 'active') {
+      target.noActRound = rounds;
+    }
+    this.emitFor(target, {
+      type: 'statusApply',
+      status,
+      until: this.round + rounds - 1,
+      sourceId: this.self.id,
+    });
+  }
+
+  /** 施加者独占标记：数据挂 target，键 = '施加者id.状态名'；约定 #1 换算集中在此 */
+  applyMark(label: string, duration: number, value?: number): void {
+    const until = this.round + duration - 1;
+    this.target.marks[`${this.self.id}.${label}`] = { until, value };
+    this.emitFor(this.target, { type: 'statusApply', status: label, until, sourceId: this.self.id });
+  }
+
+  /** 限时降防（刷新制，只降目标——约定 #11）：写入 vars 约定键，curDef 派生自动生效，结算段过期清除 */
+  defDown(target: Actor, rounds: number, value: number): void {
+    const until = this.round + rounds - 1;
+    target.vars[VAR.defDown] = value;
+    target.vars[VAR.defDownUntil] = until;
+    this.emitFor(target, { type: 'statusApply', status: '降防', until, sourceId: this.self.id });
+  }
+
+  /** 施加者读取自己挂的标记（只做有效期判断） */
+  opponentMark(label: string): MarkState | undefined {
+    const m = this.target.marks[`${this.self.id}.${label}`];
+    return m && m.until >= this.round ? m : undefined;
+  }
+
+  // ---------- 死亡处理（单一检查点） ----------
+  resolveDeaths(): Outcome | null {
+    if (this._finished) return this._outcome;
+    const p1Dead = !this.p1.isAlive;
+    const p2Dead = !this.p2.isAlive;
+    if (!p1Dead && !p2Dead) return null;
+    this._finished = true;
+    const outcome: Outcome = p1Dead && p2Dead ? 'draw' : p1Dead ? 'p2' : 'p1';
+    if (p1Dead) this.emit({ type: 'death', side: 'p1' });
+    if (p2Dead) this.emit({ type: 'death', side: 'p2' });
+    this.emit({
+      type: 'battleEnd',
+      phase: 'roundEnd',
+      outcome,
+      totalRounds: this.round,
+    });
+    this._outcome = outcome;
+    return outcome;
+  }
+}

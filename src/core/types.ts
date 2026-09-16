@@ -91,12 +91,21 @@ export interface AttackDesc {
   base: number;
   label: string;
   mult?: number; // 攻击倍率（如灼光强化 ×1.5）
+  hits?: number; // 多段聚合数（如布洛妮娅"2次分裂"，仅展示用，逐段单独走协议）
 }
 
 // 受击结果（判别联合：闪避时无伤害语义，防止 dealt=0 的歧义）
 export type HitResult =
   | { missed: true }
   | { missed: false; dealt: number; killed: boolean };
+
+// 事件输入：round/phase/side 可省略（由 ctx.emit 自动补当前值）
+type DistributiveOmit<T, K extends PropertyKey> = T extends unknown ? Omit<T, K> : never;
+export type EventInput = DistributiveOmit<BattleEvent, 'round' | 'phase' | 'side'> & {
+  round?: number;
+  phase?: RoundPhase;
+  side?: Side;
+};
 
 // 单场结果
 export interface BattleResult {
