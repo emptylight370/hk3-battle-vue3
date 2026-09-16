@@ -34,12 +34,11 @@ export interface EventBase {
   side?: Side;
 }
 
-// 引擎级状态名（封闭集合）；自定义标记名通过 `| (string & {})` 放行
-export type EngineStatus = '眩晕' | '麻痹' | '禁锢' | '魅惑' | '降防' | '屏障';
-export type StatusName = EngineStatus | (string & {});
+// 状态名为开放集合：core 只承载字符串契约，具体的封闭集合由注册表按版本定义
+export type StatusName = string;
 
-// 层数类状态（受击判花 / 灼光 / 刀势）
-export type StackKind = 'flower' | 'ember' | 'stance';
+// 层数类状态的键（花 / 灼光 / 刀势…）同为开放集合，封闭定义在 registry
+export type StackKind = string;
 
 // 战斗事件（按回合四阶段组织的扁平判别联合）
 export type BattleEvent = EventBase & // ---- 整场：战斗开始（round: 0；同速掷先手时此处即随机流首消费点）----
