@@ -1,5 +1,6 @@
 import type { CharacterDef } from '../types';
 import { vita } from './vita';
+import { xinadia } from './xinadia';
 
 /**
  * 202609 版本角色表（数值以 2026-09 官方数据校准）
@@ -8,4 +9,5 @@ import { vita } from './vita';
  */
 export const CHARACTERS_202609: Record<string, CharacterDef> = {
   [vita.id]: vita,
+  [xinadia.id]: xinadia,
 };
