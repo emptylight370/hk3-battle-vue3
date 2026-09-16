@@ -1,5 +1,5 @@
 import type { Actor } from './actor';
-import { VAR } from './actor';
+import type { Rng } from './rng';
 import type {
   AttackDesc,
   BattleEvent,
@@ -11,7 +11,6 @@ import type {
   Side,
   StatusName,
 } from './types';
-import type { Rng } from './rng';
 
 /** 封锁范围：action = 封锁全部行动；active = 仅阻止主动技能 */
 export type BlockScope = 'action' | 'active';
@@ -21,39 +20,79 @@ export type BlockScope = 'action' | 'active';
 // 角色钩子永不直接摸引擎或对方面板，一切通过 Ctx
 // ============================================================
 export interface Ctx {
+  /** 当前回合号（1 起；battleStart 事件使用 0） */
   readonly round: number;
+  /** 当前阶段：'roundStart' | 'actions' | 'settlement' | 'roundEnd' */
   readonly phase: RoundPhase;
-  readonly finished: boolean; // 战斗已分出胜负，后续攻击空转
+  /** 战斗是否已分出胜负（true 后所有攻击空转） */
+  readonly finished: boolean;
+  /** 本场战斗的确定性随机源（掷骰必须经此，禁止 Math.random） */
   readonly rng: Rng;
+  /** 对局双方引用（按阵营，非行动顺序） */
   readonly p1: Actor;
   readonly p2: Actor;
+  /** 已发出的事件流（只读；单场带日志运行的结果即此数组） */
   readonly events: readonly BattleEvent[];
-  self: Actor; // 行动方（引擎每次行动前经 beginAction 设置）
-  target: Actor; // 受击方
+  /** 当前行动方（引擎在每次行动/结算前设置） */
+  self: Actor;
+  /** 当前受击方 */
+  target: Actor;
 
+  /** 引擎内部：设置行动方/受击方上下文（角色钩子不要调用） */
   beginAction(actor: Actor): void;
+  /** 查询某 Actor 的阵营 */
   sideOf(a: Actor): Side;
+  /** 发出事件；省略的 round/phase 自动补当前值 */
   emit(e: EventInput): void;
-  emitFor(actor: Actor, e: EventInput): void; // 自动补 side
+  /** 发出事件并自动补 side（取 actor 阵营） */
+  emitFor(actor: Actor, e: EventInput): void;
 
-  // 攻击协议（kind 矩阵集中实现）
+  // ---- 攻击协议（kind 矩阵集中实现；使用指南见 registry/CTX_API.md）----
+
+  /**
+   * 完整攻击管线（攻击动作）：闪避判定 → 伤害 → 护盾/复活 → onDamaged → onHit
+   * 伤害公式：raw = max(1, round(base × (mult ?? 1)) − 目标.curDef)
+   */
   attack(desc: AttackDesc): HitResult;
-  segment(base: number, label: string): HitResult; // 效果段：不判闪避、不触发攻击方钩子
-  flat(base: number, label: string): HitResult; // 无视防御，护盾照吸
-  pierce(base: number, label: string): HitResult; // 真伤：无视防御护盾，最低 1
+  /** 技能效果段：不判闪避、不触发攻击方钩子，但触发受击方 onDamaged（点燃/子弹/碎片） */
+  segment(base: number, label: string): HitResult;
+  /** 无视防御的伤害段，护盾照吸（芽衣追加） */
+  flat(base: number, label: string): HitResult;
+  /** 真伤：无视防御与护盾，最低 1（琪亚娜） */
+  pierce(base: number, label: string): HitResult;
 
-  // 资源与状态施加辅助
+  // ---- 资源与状态施加 ----
+
+  /** 回血并封顶 maxHp，发 heal 事件；默认作用于自身 */
   heal(amount: number, who?: Actor): void;
+  /** 为自身加护盾，发 shieldGain 事件 */
   shieldGain(value: number): void;
-  /** 封锁类状态合并施加（眩晕/麻痹/禁锢等同类状态）：调用方给状态名与封锁范围 */
+  /**
+   * 施加封锁类状态（眩晕/麻痹/禁锢/变身封锁…同类合并，调用方给状态名）
+   * @param status 状态名（进 statusApply/statusExpire 事件）
+   * @param rounds 持续回合数，含施加回合（约定 #1）；重复施加刷新为满时长（约定 #2）
+   * @param scope  'action' 封锁全部行动（stunRound）；'active' 仅阻止主动技能（noActRound）
+   */
   block(target: Actor, status: StatusName, rounds: number, scope: BlockScope): void;
-  /** 限时降防（刷新制，只降目标——约定 #11）；由结算段过期清除 */
+  /**
+   * 施加限时降防：只降目标（约定 #11），刷新制。
+   * 目标 curDef 立即生效；结算段计数 −1，归零清值并发 statusExpire('降防')
+   */
   defDown(target: Actor, rounds: number, value: number): void;
-  applyMark(label: string, duration: number, value?: number): void; // 约定 #1 集中换算
+  /**
+   * 施加者独占标记：数据挂在 target.marks（键 = '施加者id.状态名'），语义只有施加者读取。
+   * until = 当前回合 + duration − 1（约定 #1 集中换算），并发 statusApply 事件
+   */
+  applyMark(label: string, duration: number, value?: number): void;
+  /** 读取自己施加给对方的标记；过期（until < 当前回合）返回 undefined */
   opponentMark(label: string): MarkState | undefined;
 
-  // 死亡处理（单一检查点）
+  // ---- 死亡处理 ----
+
+  /** 死亡检查（单一检查点）：无人死亡返回 null；有死亡则发 death/battleEnd 并置 finished */
   resolveDeaths(): Outcome | null;
+  /** 立即结束战斗（幂等），发 battleEnd——引擎回合上限平局走此入口 */
+  finish(outcome: Outcome): void;
 }
 
 // ============================================================
@@ -230,6 +269,7 @@ export class BattleCtx implements Ctx {
     } else if (scope === 'active') {
       target.noActRound = rounds;
     }
+    target.blockStatus = status;
     this.emitFor(target, {
       type: 'statusApply',
       status,
@@ -245,12 +285,16 @@ export class BattleCtx implements Ctx {
     this.emitFor(this.target, { type: 'statusApply', status: label, until, sourceId: this.self.id });
   }
 
-  /** 限时降防（刷新制，只降目标——约定 #11）：写入 vars 约定键，curDef 派生自动生效，结算段过期清除 */
+  /** 限时降防（刷新制，只降目标——约定 #11）：计数口径与 block 一致，结算段 −1 归零清除 */
   defDown(target: Actor, rounds: number, value: number): void {
-    const until = this.round + rounds - 1;
-    target.vars[VAR.defDown] = value;
-    target.vars[VAR.defDownUntil] = until;
-    this.emitFor(target, { type: 'statusApply', status: '降防', until, sourceId: this.self.id });
+    target.defDown = value;
+    target.defDownRounds = rounds;
+    this.emitFor(target, {
+      type: 'statusApply',
+      status: '降防',
+      until: this.round + rounds - 1,
+      sourceId: this.self.id,
+    });
   }
 
   /** 施加者读取自己挂的标记（只做有效期判断） */
@@ -259,23 +303,24 @@ export class BattleCtx implements Ctx {
     return m && m.until >= this.round ? m : undefined;
   }
 
-  // ---------- 死亡处理（单一检查点） ----------
+  // ---------- 死亡处理 ----------
+
+  /** 立即结束战斗（幂等）：发 battleEnd。引擎的回合上限平局也走此入口 */
+  finish(outcome: Outcome): void {
+    if (this._finished) return;
+    this._finished = true;
+    this._outcome = outcome;
+    this.emit({ type: 'battleEnd', phase: 'roundEnd', outcome, totalRounds: this.round });
+  }
+
   resolveDeaths(): Outcome | null {
     if (this._finished) return this._outcome;
     const p1Dead = !this.p1.isAlive;
     const p2Dead = !this.p2.isAlive;
     if (!p1Dead && !p2Dead) return null;
-    this._finished = true;
-    const outcome: Outcome = p1Dead && p2Dead ? 'draw' : p1Dead ? 'p2' : 'p1';
     if (p1Dead) this.emit({ type: 'death', side: 'p1' });
     if (p2Dead) this.emit({ type: 'death', side: 'p2' });
-    this.emit({
-      type: 'battleEnd',
-      phase: 'roundEnd',
-      outcome,
-      totalRounds: this.round,
-    });
-    this._outcome = outcome;
-    return outcome;
+    this.finish(p1Dead && p2Dead ? 'draw' : p1Dead ? 'p2' : 'p1');
+    return this._outcome;
   }
 }

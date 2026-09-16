@@ -221,11 +221,12 @@ describe('applyMark / opponentMark — 施加者独占标记', () => {
 })
 
 describe('defDown — 限时降防（约定 #11：只降目标，刷新制）', () => {
-  it('写入 vars 约定键，curDef 立即生效，发 statusApply 事件', () => {
+  it('写入基类字段，curDef 立即生效，发 statusApply 事件', () => {
     const { ctx, p2, events } = setup(undefined, undefined, 2)
     expect(p2.curDef).toBe(8)
     ctx.defDown(p2, 2, 3)
-    expect(p2.vars.defDown).toBe(3)
+    expect(p2.defDown).toBe(3)
+    expect(p2.defDownRounds).toBe(2)
     expect(p2.curDef).toBe(5)
     expect(of(events, 'statusApply')[0]).toMatchObject({
       status: '降防',
@@ -239,7 +240,8 @@ describe('defDown — 限时降防（约定 #11：只降目标，刷新制）', 
     const { ctx, p2 } = setup()
     ctx.defDown(p2, 2, 3)
     ctx.defDown(p2, 2, 4)
-    expect(p2.vars.defDown).toBe(4)
+    expect(p2.defDown).toBe(4)
+    expect(p2.defDownRounds).toBe(2)
   })
 })
 

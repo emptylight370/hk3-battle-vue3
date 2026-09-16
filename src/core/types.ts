@@ -35,21 +35,15 @@ export interface EventBase {
 }
 
 // 引擎级状态名（封闭集合）；自定义标记名通过 `| (string & {})` 放行
-export type EngineStatus =
-  | '眩晕'
-  | '麻痹'
-  | '禁锢'
-  | '魅惑'
-  | '降防'
-  | '屏障';
+export type EngineStatus = '眩晕' | '麻痹' | '禁锢' | '魅惑' | '降防' | '屏障';
 export type StatusName = EngineStatus | (string & {});
 
 // 层数类状态（受击判花 / 灼光 / 刀势）
 export type StackKind = 'flower' | 'ember' | 'stance';
 
 // 战斗事件（按回合四阶段组织的扁平判别联合）
-export type BattleEvent = EventBase &
-  (// ---- 整场：战斗开始（round: 0；同速掷先手时此处即随机流首消费点）----
+export type BattleEvent = EventBase & // ---- 整场：战斗开始（round: 0；同速掷先手时此处即随机流首消费点）----
+  (
     | { type: 'battleStart'; first: Side } // 对应日志首行"……，X 先手"
     // ---- roundStart：回合开始（回合开始被动，可致死）----
     | { type: 'roundStart' }
@@ -95,9 +89,7 @@ export interface AttackDesc {
 }
 
 // 受击结果（判别联合：闪避时无伤害语义，防止 dealt=0 的歧义）
-export type HitResult =
-  | { missed: true }
-  | { missed: false; dealt: number; killed: boolean };
+export type HitResult = { missed: true } | { missed: false; dealt: number; killed: boolean };
 
 // 事件输入：round/phase/side 可省略（由 ctx.emit 自动补当前值）
 type DistributiveOmit<T, K extends PropertyKey> = T extends unknown ? Omit<T, K> : never;

@@ -54,13 +54,13 @@ describe('Actor — 派生属性', () => {
     expect(a.curAtk).toBe(26)
   })
 
-  it('curDef = defBase + defBonusPerm + tempDef − defDown，最低 0', () => {
+  it('curDef = defBase + defBonus + tempDef − defDown，最低 0', () => {
     const a = createActor(baseDef)
-    a.vars.defBonusPerm = 3
+    a.vars.defBonus = 3
     expect(a.curDef).toBe(11)
-    a.vars.defDown = 5
+    a.defDown = 5
     expect(a.curDef).toBe(6)
-    a.vars.defDown = 99 // 减到 0 兜底，不为负
+    a.defDown = 99 // 减到 0 兜底，不为负
     expect(a.curDef).toBe(0)
   })
 })
