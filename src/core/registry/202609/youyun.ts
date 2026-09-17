@@ -21,30 +21,21 @@ export const youyun: CharacterDef = {
   },
   // 被动技能
   onRoundStart(ctx) {
-    if (ctx.self.vars.double && ctx.self.vars.double === 1) {
-      if (ctx.rng.chance(0.66)) {
+    if (ctx.rng.chance(0.33)) {
+      ctx.emit({ type: 'proc', kind: 'passive', label: '论文指导' });
+      const result = ctx.rng.pick([1, 2, 3]);
+      let t = 1;
+      if (ctx.self.vars.double) {
         ctx.emit({ type: 'proc', kind: 'passive', label: '论文指导' });
-        const result = ctx.rng.pick([1, 2, 3]);
-        if (result === 1) {
-          ctx.heal(12);
-        } else if (result === 2) {
-          ctx.attack({ kind: 'attack', base: 15, label: '论文指导' });
-        } else if (result === 3) {
-          ctx.defDown(ctx.target, 2, 'perm');
-        }
+        t = 2;
+        ctx.self.vars.double = 0;
       }
-      ctx.self.vars.double = 0;
-    } else {
-      if (ctx.rng.chance(0.33)) {
-        ctx.emit({ type: 'proc', kind: 'passive', label: '论文指导' });
-        const result = ctx.rng.pick([1, 2, 3]);
-        if (result === 1) {
-          ctx.heal(12);
-        } else if (result === 2) {
-          ctx.attack({ kind: 'attack', base: 15, label: '论文指导' });
-        } else if (result === 3) {
-          ctx.defDown(ctx.target, 2, 'perm');
-        }
+      if (result === 1) {
+        ctx.heal(12 * t);
+      } else if (result === 2) {
+        ctx.attack({ kind: 'attack', base: 15 * t, label: '论文指导' });
+      } else if (result === 3) {
+        ctx.defDown(ctx.target, 2 * t, 'perm');
       }
     }
   },
