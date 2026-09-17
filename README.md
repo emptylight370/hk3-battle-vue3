@@ -1,42 +1,16 @@
-# .
+# 崩坏三电子斗蛐蛐
 
-This template should help get you started developing with Vue 3 in Vite.
+本项目实现了一个崩坏三擂台活动的模拟器，基于 vite 与 Vue3 实现。
 
-## Recommended IDE Setup
+## 本地开发
 
-[VS Code](https://code.visualstudio.com/) + [Vue (Official)](https://marketplace.visualstudio.com/items?itemName=Vue.volar) (and disable Vetur).
-
-## Recommended Browser Setup
-
-- Chromium-based browsers (Chrome, Edge, Brave, etc.):
-  - [Vue.js devtools](https://chromewebstore.google.com/detail/vuejs-devtools/nhdogjmejiglipccpnnnanhbledajbpd)
-  - [Turn on Custom Object Formatter in Chrome DevTools](http://bit.ly/object-formatters)
-- Firefox:
-  - [Vue.js devtools](https://addons.mozilla.org/en-US/firefox/addon/vue-js-devtools/)
-  - [Turn on Custom Object Formatter in Firefox DevTools](https://fxdx.dev/firefox-devtools-custom-object-formatters/)
-
-## Type Support for `.vue` Imports in TS
-
-TypeScript cannot handle type information for `.vue` imports by default, so we replace the `tsc` CLI with `vue-tsc` for type checking. In editors, we need [Volar](https://marketplace.visualstudio.com/items?itemName=Vue.volar) to make the TypeScript language service aware of `.vue` types.
-
-## Customize configuration
-
-See [Vite Configuration Reference](https://vite.dev/config/).
-
-## Project Setup
-
-```sh
+```bash
 pnpm install
-```
-
-### Compile and Hot-Reload for Development
-
-```sh
 pnpm dev
+pnpm test
 ```
 
-### Type-Check, Compile and Minify for Production
+## 数据
 
-```sh
-pnpm build
-```
+数据根据活动网页文案说明整理而成，具体逻辑根据描述文本猜测得到。
+在预测胜率时不保证准确率，目前测试中发现胜率统计结果与官方说法存在出入，角色行动逻辑不保证与官方设定一致。
