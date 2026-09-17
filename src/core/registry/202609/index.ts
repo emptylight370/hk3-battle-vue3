@@ -1,15 +1,15 @@
 import type { CharacterDef } from '../types';
+import { bronya } from './bronya';
+import { dreamer } from './dreamer';
+import { heliya } from './heliya';
+import { kelali } from './kelali';
+import { kiana } from './kiana';
+import { mei } from './mei';
+import { rita } from './rita';
 import { seele } from './seele';
 import { vita } from './vita';
 import { xinadia } from './xinadia';
-import { rita } from './rita';
-import { dreamer } from './dreamer';
 import { youlandaier } from './youlandaier';
-import { mei } from './mei';
-import { kelali } from './kelali';
-import { bronya } from './bronya';
-import { kiana } from './kiana';
-import { heliya } from './heliya';
 import { youyun } from './youyun';
 
 /**
