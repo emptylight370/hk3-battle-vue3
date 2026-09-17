@@ -1,4 +1,3 @@
-import type { ActorState } from '@/core/actor';
 import type { CharacterDef } from '../types';
 
 /**

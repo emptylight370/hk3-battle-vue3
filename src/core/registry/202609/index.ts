@@ -6,6 +6,7 @@ import { rita } from './rita';
 import { dreamer } from './dreamer';
 import { youlandaier } from './youlandaier';
 import { mei } from './mei';
+import { kelali } from './kelali';
 
 /**
  * 202609 版本角色表（数值以 2026-09 官方数据校准）
@@ -20,4 +21,5 @@ export const CHARACTERS_202609: Record<string, CharacterDef> = {
   [dreamer.id]: dreamer,
   [youlandaier.id]: youlandaier,
   [mei.id]: mei,
+  [kelali.id]: kelali,
 };
