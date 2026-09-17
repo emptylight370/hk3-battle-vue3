@@ -3,6 +3,7 @@ import { seele } from './seele';
 import { vita } from './vita';
 import { xinadia } from './xinadia';
 import { rita } from './rita';
+import { dreamer } from './dreamer';
 
 /**
  * 202609 版本角色表（数值以 2026-09 官方数据校准）
@@ -14,4 +15,5 @@ export const CHARACTERS_202609: Record<string, CharacterDef> = {
   [xinadia.id]: xinadia,
   [seele.id]: seele,
   [rita.id]: rita,
+  [dreamer.id]: dreamer,
 };
