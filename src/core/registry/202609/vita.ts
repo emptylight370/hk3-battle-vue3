@@ -23,8 +23,8 @@ export const vita: CharacterDef = {
   },
   // 主动技能
   activeSkill(ctx) {
-    ctx.self.vars.tempAtk = 8;
-    ctx.self.vars.tempDef = 3;
+    ctx.atkUp(ctx.self, 8, 'temp');
+    ctx.defUp(ctx.self, 3, 'temp');
     ctx.attack({ kind: 'attack', base: ctx.self.curAtk, label: '蔽羽遮天' });
     ctx.self.vars.super = 1; // 变身标记
   },
@@ -37,14 +37,14 @@ export const vita: CharacterDef = {
   // 主动技能
   onSettle(ctx) {
     if (ctx.self.vars.super && ctx.self.vars.super > 0) {
-      ctx.self.vars.super--;
+      ctx.self.vars.super = 0;
       ctx.block(ctx.self, '变身结束', 1, 'action');
     }
   },
   // 被动技能
   onLethal(ctx) {
     if (ctx.rng.chance(0.15)) {
-      ctx.self.hp = ctx.self.maxHp * 0.2;
+      ctx.heal(ctx.self.maxHp * 0.2);
       return true;
     } else {
       return false;

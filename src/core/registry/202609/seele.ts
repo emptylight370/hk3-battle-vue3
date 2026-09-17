@@ -24,7 +24,7 @@ export const seele: CharacterDef = {
     if (ctx.self.vars.flowers && ctx.self.vars.flowers > 0) {
       ctx.emit({ type: 'proc', kind: 'passive', label: '落英旋舞' });
       ctx.attack({ kind: 'attack', base: ctx.self.curAtk + 6 * ctx.self.vars.flowers, label: '普攻' });
-      ctx.self.hp += 4 * ctx.self.vars.flowers;
+      ctx.heal(ctx.self.vars.flowers * 4);
       ctx.self.vars.flowers = 0;
     }
   },
@@ -34,7 +34,7 @@ export const seele: CharacterDef = {
     if (ctx.self.vars.flowers && ctx.self.vars.flowers > 0) {
       ctx.emit({ type: 'proc', kind: 'passive', label: '落英旋舞' });
       ctx.attack({ kind: 'attack', base: 15 + 6 * ctx.self.vars.flowers, label: '润愈之镰' });
-      ctx.self.hp += 4 * ctx.self.vars.flowers;
+      ctx.heal(ctx.self.vars.flowers * 4);
     } else {
       ctx.attack({ kind: 'attack', base: 15, label: '润愈之镰' });
     }

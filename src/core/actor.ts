@@ -28,12 +28,16 @@ export class Actor {
   shield = 0;
   stunRound = 0; // 眩晕/麻痹（封锁全部行动，结算段 −1）
   noActRound = 0; // 仅阻止主动技能（禁锢等，结算段 −1）
+  noGainAtkRound = 0; // 封锁攻击获得（结算段 −1；>0 时新的攻击增益无效）
+  noGainDefRound = 0; // 封锁防御获得（结算段 −1；>0 时新的防御增益无效）
+  atkDown = 0; // 当前降攻值（ctx.atkDown 施加，结算段归零时清除）
+  atkDownRounds = 0; // 降攻剩余回合数（含施加回合，结算段 −1）
   defDown = 0; // 当前降防值（ctx.defDown 施加，结算段归零时清除）
   defDownRounds = 0; // 降防剩余回合数（含施加回合，结算段 −1）
   marks: Marks = {}; // 敌方施加状态
   vars: Record<string, number> = {}; // 我方施加状态
   _side: Side = 'p1'; // 引擎注入
-  blockStatus = ''; // 最近施加的封锁状态名
+  blockStatus: Record<string, string> = {}; // 封锁状态名字典：计数器字段名 → 状态名（到期时还原）
 
   // 角色回溯队列（通用容器；快照内容与还原逻辑由具体角色定义，见 snapshot/restore）
   snapQueue: ActorState[] = [];
@@ -50,9 +54,12 @@ export class Actor {
     this.marks = { ...this.marks };
   }
 
-  /** 当前攻击力 = atkBase + atkBonus（永久） + tempAtk（回合内） */
+  /** 当前攻击力 = max(0, atkBase + atkBonus（永久） + tempAtk（回合内） − atkDown) */
   get curAtk(): number {
-    return this.atkBase + (this.vars[VAR.atkBonus] ?? 0) + (this.vars[VAR.tempAtk] ?? 0);
+    return Math.max(
+      0,
+      this.atkBase + (this.vars[VAR.atkBonus] ?? 0) + (this.vars[VAR.tempAtk] ?? 0) - this.atkDown,
+    );
   }
   /** 当前防御 = max(0, defBase + defBonus（永久） + tempDef（回合内） − defDown) */
   get curDef(): number {
@@ -107,26 +114,30 @@ export class Actor {
   /** ③ 结算：角色私有衰减；通用槽由 settle* 系列处理 */
   onSettle(_ctx: Ctx): void {}
 
-  /** 封锁计数 −1（stunRound/noActRound）；归零时按 blockStatus 发 statusExpire */
+  /** 封锁计数 −1（stunRound/noActRound/noGainAtkRound/noGainDefRound）；归零时按 blockStatus 字典发 statusExpire */
   settleBlocks(ctx: Ctx): void {
-    for (const key of ['stunRound', 'noActRound'] as const) {
+    for (const key of ['stunRound', 'noActRound', 'noGainAtkRound', 'noGainDefRound'] as const) {
       if (this[key] > 0) {
         this[key]--;
-        if (this[key] === 0 && this.blockStatus) {
-          ctx.emitFor(this, { type: 'statusExpire', status: this.blockStatus });
-          this.blockStatus = '';
+        if (this[key] === 0 && this.blockStatus[key]) {
+          ctx.emitFor(this, { type: 'statusExpire', status: this.blockStatus[key]! });
+          delete this.blockStatus[key];
         }
       }
     }
   }
-  /** 效果过期：临时增益清零（tempAtk/tempDef）；降防计数 −1、归零清值并发 statusExpire('降防') */
+  /** 效果过期：临时增益清零；降攻/降防计数 −1、归零清值并发 statusExpire */
   settleVars(ctx: Ctx): void {
     for (const k of [VAR.tempAtk, VAR.tempDef]) delete this.vars[k];
-    if (this.defDownRounds > 0) {
-      this.defDownRounds--;
-      if (this.defDownRounds === 0) {
-        this.defDown = 0;
-        ctx.emitFor(this, { type: 'statusExpire', status: '降防' });
+    for (const key of ['atkDownRounds', 'defDownRounds'] as const) {
+      if (this[key] > 0) {
+        this[key]--;
+        if (this[key] === 0) {
+          const isAtk = key === 'atkDownRounds';
+          if (isAtk) this.atkDown = 0;
+          else this.defDown = 0;
+          ctx.emitFor(this, { type: 'statusExpire', status: isAtk ? '攻击降低' : '降防' });
+        }
       }
     }
   }

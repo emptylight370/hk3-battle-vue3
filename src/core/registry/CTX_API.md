@@ -109,6 +109,19 @@ ctx.block(ctx.self, '变身封锁', 1, 'action'); // 也可以封自己（薇塔
 // 限时降防（刷新制，只降目标——约定 #11）
 ctx.defDown(target, 2, 3); // 目标 def −3，持续到本回合 +1 回合
 
+// 限时降攻（刷新制，只降目标）
+ctx.atkDown(target, 2, 5); // 目标 atk −5，结算段计数 −1 归零恢复
+
+// 攻防提升（第一个参数是生效目标；封锁检查作用于目标，返回 false = 被封锁）
+ctx.atkUp(ctx.self, 10, 'perm'); // 永久：目标 vars.atkBonus += 10
+ctx.atkUp(ctx.self, 8, 'temp'); // 回合内：tempAtk += 8，结算段清零
+ctx.defUp(ctx.self, 3, 'perm'); // 永久：defBonus += 3
+ctx.defUp(ctx.self, 3, 'temp'); // 回合内：tempDef += 3
+
+// 封锁攻防获得（scope = 'atkUp' / 'defUp'：只拦新增益，已有值不受影响，不封锁行动）
+ctx.block(target, '禁锢', 2, 'atkUp'); // 期间对目标的 ctx.atkUp 无效
+ctx.block(target, '禁锢', 2, 'defUp'); // 期间对目标的 ctx.defUp 无效
+
 // 施加者独占标记（数据挂目标，键 = '我的id.状态名'，语义只有我能读）
 ctx.applyMark('标记', 2, 7); // duration 含施加回合（约定 #1），value 可选
 ctx.opponentMark('标记'); // 读取自己挂的标记；过期返回 undefined
@@ -133,6 +146,8 @@ ctx.clearDebuffs(); // 清零计数 + 删除敌方标记，逐项发 statusExpir
 - `rounds/duration` 均为"含施加回合"：施加于 R、持续 2 → 生效 R~R+1；
 - 重复施加 = 刷新为满时长（不是叠加）；
 - 计数器由引擎结算段逐回合 −1，归零自动发 `statusExpire`（"眩晕状态结束"）。
+- **封锁状态名记录在字典中**（计数器字段名 → 状态名），多种封锁并存时各自独立到期、状态名互不干扰。
+- **攻防获得的封锁语义**：只拦新增益（`gainAtk/gainDef` 返回 false），目标已有值不受影响，也不封锁行动——对应"禁锢封锁攻防获得，不减益"的机制。
 
 > ⚠️ **关键口径：封锁的"实际封锁回合数"= rounds − 1**。
 > 官方日志观察证实：**所有效果都在回合结束前统一结算一次**，与施加方先手/后手无关——后手施加的 debuff 同样会在当前回合消耗一次计数。因此 `rounds` 覆盖的回合中，施加当回合通常已经行动过，真正被封锁的是后续 `rounds − 1` 个回合：

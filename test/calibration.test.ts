@@ -137,7 +137,7 @@ describe('薇塔复活', () => {
     const ctx = new BattleCtx(rng, p1, p2);
     p1.hp = 1;
     p1.onLethal(ctx);
-    expect(p1.hp).toBe(p1.maxHp * 0.2);
+    expect(p1.hp).toBe(1 + p1.maxHp * 0.2); // "回复"语义 = 治疗量，非设为定值
   });
 
   it('判定失败：不复活', () => {

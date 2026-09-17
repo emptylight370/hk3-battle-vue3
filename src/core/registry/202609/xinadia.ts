@@ -25,11 +25,7 @@ export const xinadia: CharacterDef = {
       // 发送消息提示被动触发
       ctx.emit({ type: 'proc', kind: 'passive', label: '影中曙光' });
       ctx.attack({ kind: 'attack', base: ctx.self.curAtk + 10, label: '普攻' });
-      if (!ctx.self.vars.atkBonus || ctx.self.vars.atkBonus < 1) {
-        ctx.self.vars.atkBonus = 1;
-      } else {
-        ctx.self.vars.atkBonus += 1;
-      }
+      ctx.atkUp(ctx.self, 1, 'perm');
     } else {
       ctx.attack({ kind: 'attack', base: ctx.self.curAtk, label: '普攻' });
     }
@@ -40,11 +36,7 @@ export const xinadia: CharacterDef = {
       if (ctx.rng.chance(0.2)) {
         ctx.emit({ type: 'proc', kind: 'passive', label: '魔法陨石' });
         ctx.attack({ kind: 'attack', base: ctx.self.curAtk + 10, label: '梦中的流星雨' });
-        if (!ctx.self.vars.atkBonus || ctx.self.vars.atkBonus < 1) {
-          ctx.self.vars.atkBonus = 1;
-        } else {
-          ctx.self.vars.atkBonus += 1;
-        }
+        ctx.atkUp(ctx.self, 1, 'perm');
       } else {
         ctx.attack({ kind: 'attack', base: ctx.self.curAtk, label: '梦中的流星雨' });
       }

@@ -309,6 +309,84 @@ describe('emit — round/phase/side 自动补全', () => {
   })
 })
 
+// ---------- 攻防获得封锁与增减 ----------
+
+describe('攻防获得封锁与增减', () => {
+  it("atkUp/defUp 'perm' 累加永久增益并作用于 curAtk/curDef", () => {
+    const { ctx, p1 } = setup()
+    expect(ctx.atkUp(p1, 10, 'perm')).toBe(true)
+    expect(ctx.defUp(p1, 3, 'perm')).toBe(true)
+    expect(p1.vars.atkBonus).toBe(10)
+    expect(p1.curAtk).toBe(26) // 16 + 10
+    expect(p1.curDef).toBe(11) // 8 + 3
+  })
+
+  it("atkUp/defUp 'temp' 累加临时增益，结算段清零", () => {
+    const { ctx, p1 } = setup()
+    ctx.atkUp(p1, 8, 'temp')
+    ctx.defUp(p1, 3, 'temp')
+    expect(p1.vars.tempAtk).toBe(8)
+    expect(p1.curAtk).toBe(24)
+    expect(p1.curDef).toBe(11)
+    p1.settleVars(ctx) // 结算段清零
+    expect(p1.vars.tempAtk).toBeUndefined()
+    expect(p1.curAtk).toBe(16)
+    expect(p1.curDef).toBe(8)
+  })
+
+  it('封锁检查作用于生效目标：甲给乙上增益时，受乙自身封锁约束', () => {
+    const { ctx, p1, p2 } = setup()
+    ctx.atkUp(p1, 10, 'perm') // 先有存量
+    p1.vars.defBonus = 3
+    // 乙封锁甲的攻防获得
+    ctx.block(p1, '禁锢', 2, 'atkUp')
+    ctx.block(p1, '禁锢', 2, 'defUp')
+    expect(p1.noGainAtkRound).toBe(2)
+    expect(p1.noGainDefRound).toBe(2)
+    // 无论谁施加，只要生效目标是甲就受甲的封锁约束
+    expect(ctx.atkUp(p1, 10, 'perm')).toBe(false)
+    expect(ctx.defUp(p1, 3, 'perm')).toBe(false)
+    expect(ctx.atkUp(p2, 10, 'perm')).toBe(true) // 乙未被封锁，正常生效
+    expect(p1.vars.atkBonus).toBe(10) // 存量不受影响
+    expect(p1.vars.defBonus).toBe(3)
+  })
+
+  it('封锁到期后增益恢复生效（结算段计数 −1）', () => {
+    const { ctx, p1 } = setup()
+    ctx.block(p1, '禁锢', 1, 'atkUp')
+    expect(ctx.atkUp(p1, 5, 'perm')).toBe(false)
+    p1.settleBlocks(ctx) // 结算段 −1 → 归零
+    expect(ctx.atkUp(p1, 5, 'perm')).toBe(true)
+    expect(p1.vars.atkBonus).toBe(5)
+  })
+
+  it('atkDown 只降目标攻击，施加方不变；结算段过期恢复', () => {
+    const { ctx, p1, p2, events } = setup(undefined, undefined, 2)
+    expect(p2.curAtk).toBe(16)
+    ctx.atkDown(p2, 2, 5)
+    expect(p2.curAtk).toBe(11)
+    expect(p1.curAtk).toBe(16)
+    expect(of(events, 'statusApply')[0]).toMatchObject({ status: '攻击降低', side: 'p2' })
+    p2.settleVars(ctx)
+    p2.settleVars(ctx)
+    expect(p2.atkDown).toBe(0)
+    expect(p2.curAtk).toBe(16)
+    expect(of(events, 'statusExpire').at(-1)).toMatchObject({ status: '攻击降低' })
+  })
+
+  it('blockStatus 字典：多种封锁并存时到期状态名各自还原', () => {
+    const { ctx, p2, events } = setup()
+    ctx.block(p2, '眩晕', 1, 'action')
+    ctx.block(p2, '禁锢', 2, 'atkUp')
+    p2.settleBlocks(ctx) // 眩晕归零 → 还原'眩晕'；禁锢 2→1
+    expect(of(events, 'statusExpire')).toMatchObject([{ status: '眩晕' }])
+    p2.settleBlocks(ctx)
+    p2.settleBlocks(ctx) // 禁锢归零 → 还原'禁锢'
+    const exp = of(events, 'statusExpire')
+    expect(exp.at(-1)).toMatchObject({ status: '禁锢' })
+  })
+})
+
 // ---------- 负面状态感知与驱散 ----------
 
 describe('onStatusApply — 被施加状态感知', () => {
