@@ -34,10 +34,7 @@ export function runBattle(
 }
 
 /** 过滤指定类型的事件，并收窄到对应的事件成员类型 */
-export function of<T extends BattleEvent['type']>(
-  events: BattleEvent[],
-  type: T,
-): Extract<BattleEvent, { type: T }>[] {
+export function of<T extends BattleEvent['type']>(events: BattleEvent[], type: T): Extract<BattleEvent, { type: T }>[] {
   return events.filter((e): e is Extract<BattleEvent, { type: T }> => e.type === type);
 }
 

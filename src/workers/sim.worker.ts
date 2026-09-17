@@ -1,6 +1,6 @@
 /// <reference lib="webworker" />
 import { batch } from '@/core/simulate';
-import type { BatchRequest, BatchResult } from '@/core/types';
+import type { BatchRequest } from '@/core/types';
 
 // ============================================================
 // 批量对局 Worker —— simulate.batch 的薄包装

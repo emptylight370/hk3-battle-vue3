@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue';
 import type { BattleEvent } from '@/core/types';
 import { useBattleStore } from '@/stores/battle';
+import { computed, ref } from 'vue';
 
 // ============================================================
 // 单场事件时间轴 —— BatchResult.firstEvents 的渲染视图

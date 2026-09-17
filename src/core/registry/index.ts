@@ -1,5 +1,5 @@
-import type { CharacterDef } from './types';
 import { CHARACTERS_202609 } from './202609';
+import type { CharacterDef } from './types';
 
 /**
  * 注册表聚合层 —— UI / worker / simulate 的唯一合法入口。
@@ -20,10 +20,7 @@ const TABLES: Record<VersionTag, Record<string, CharacterDef>> = {
 };
 
 /** 聚合角色表（新版本覆盖同名 id） */
-export const CHARACTERS: Record<string, CharacterDef> = Object.assign(
-  {},
-  ...VERSIONS.map((v) => TABLES[v]),
-);
+export const CHARACTERS: Record<string, CharacterDef> = Object.assign({}, ...VERSIONS.map((v) => TABLES[v]));
 
 /** 按 id 取角色定义，未注册时抛错（fail fast，防止 UI 静默空白） */
 export function getCharacter(id: string): CharacterDef {

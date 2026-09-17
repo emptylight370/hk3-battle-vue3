@@ -11,11 +11,11 @@
    访问自身面板/状态一律 `ctx.self`，**不要依赖 `this`**（函数体绑定的 `this` 仅是运行时便利，类型上不可靠）。
 2. **只读该读的，只写该写的**。Actor 字段分三类（详见 `../actor.ts` 注释）：
 
-   | 类别                         | 字段                                                             | 钩子能否直接写                              |
-   | ---------------------------- | ---------------------------------------------------------------- | ------------------------------------------- |
+   | 类别                         | 字段                                                                                           | 钩子能否直接写                              |
+   | ---------------------------- | ---------------------------------------------------------------------------------------------- | ------------------------------------------- |
    | 引擎级流程状态               | `hp / shield / stunRound / noActRound / noGainAtkRound / noGainDefRound / timedAtk / timedDef` | ✘ 一律走 `ctx` 辅助方法                     |
-   | 敌方施加状态（挂在目标身上） | `marks`                                                          | ✘ 走 `ctx.applyMark / opponentMark`         |
-   | 我方私有状态袋               | `vars`（数值键值对）                                             | ✓ 只读写**自己的键**（`ctx.self.vars.xxx`） |
+   | 敌方施加状态（挂在目标身上） | `marks`                                                                                        | ✘ 走 `ctx.applyMark / opponentMark`         |
+   | 我方私有状态袋               | `vars`（数值键值对）                                                                           | ✓ 只读写**自己的键**（`ctx.self.vars.xxx`） |
 
    派生属性只读：`ctx.self.curAtk / curDef / isAlive / maxHp`。
 
@@ -51,12 +51,12 @@ if (ctx.target.isAlive) {
 
 **唯一的伤害入口是 `ctx.attack(desc, who?)`**——四种伤害类型由 `desc.kind` 区分，不要再用单独的 segment/flat/pierce 函数（已移除）：
 
-| `desc.kind`               | 闪避 | 攻击方 onHit | 受击方 onDamaged | 防御     | 护盾     | 用途                         |
-| ------------------------- | ---- | ------------ | ---------------- | -------- | -------- | ---------------------------- |
-| `'attack'`                | ✓    | ✓            | ✓                | 减       | 吸收     | 攻击动作（普攻/主动技主段）  |
-| `'segment'`               | ✗    | ✗            | ✓                | 减       | 吸收     | 技能效果段（点燃/子弹/碎片） |
-| `'flat'`                  | ✗    | ✗            | ✓                | **无视** | 吸收     | 无视防御追加（芽衣）         |
-| `'pierce'`                | ✗    | ✗            | ✓                | **无视** | **无视** | 真伤，最低 1（琪亚娜）       |
+| `desc.kind` | 闪避 | 攻击方 onHit | 受击方 onDamaged | 防御     | 护盾     | 用途                         |
+| ----------- | ---- | ------------ | ---------------- | -------- | -------- | ---------------------------- |
+| `'attack'`  | ✓    | ✓            | ✓                | 减       | 吸收     | 攻击动作（普攻/主动技主段）  |
+| `'segment'` | ✗    | ✗            | ✓                | 减       | 吸收     | 技能效果段（点燃/子弹/碎片） |
+| `'flat'`    | ✗    | ✗            | ✓                | **无视** | 吸收     | 无视防御追加（芽衣）         |
+| `'pierce'`  | ✗    | ✗            | ✓                | **无视** | **无视** | 真伤，最低 1（琪亚娜）       |
 
 `ctx.attack` 的入参与出参：
 
@@ -151,10 +151,10 @@ ctx.clearDebuffs(); // 清零计数 + 清除负向限时变化 + 删除敌方标
 
 ### 5.1 攻防变化的存储模型
 
-| 通道 | 存储 | 写入函数 | 生命周期 |
-|---|---|---|---|
-| 永久变化值 | `vars.atkBonus / defBonus`（带符号：正增负减） | `ctx.atkUp/defUp(target, v, 'perm')` 累加；`ctx.atkDown/defDown(target, v, 'perm')` 累减 | 永久，跨回合存活 |
-| 限时变化 | `timedAtk / timedDef: Record<标记, { value, rounds, status }>` | `ctx.atkUp/defUp(target, v, 'temp', rounds, tag)`；`ctx.atkDown/defDown(...)` 写负值 | 结算段逐回合 −1，归零移除并发 `statusExpire` |
+| 通道       | 存储                                                           | 写入函数                                                                                 | 生命周期                                     |
+| ---------- | -------------------------------------------------------------- | ---------------------------------------------------------------------------------------- | -------------------------------------------- |
+| 永久变化值 | `vars.atkBonus / defBonus`（带符号：正增负减）                 | `ctx.atkUp/defUp(target, v, 'perm')` 累加；`ctx.atkDown/defDown(target, v, 'perm')` 累减 | 永久，跨回合存活                             |
+| 限时变化   | `timedAtk / timedDef: Record<标记, { value, rounds, status }>` | `ctx.atkUp/defUp(target, v, 'temp', rounds, tag)`；`ctx.atkDown/defDown(...)` 写负值     | 结算段逐回合 −1，归零移除并发 `statusExpire` |
 
 派生属性：`curAtk = max(0, atkBase + atkBonus + Σ timedAtk.value)`（def 同构）。
 
@@ -165,11 +165,11 @@ ctx.clearDebuffs(); // 清零计数 + 清除负向限时变化 + 删除敌方标
 > ⚠️ **关键口径：封锁的"实际封锁回合数"= rounds − 1**。
 > 官方日志观察证实：**所有效果都在回合结束前统一结算一次**，与施加方先手/后手无关——后手施加的 debuff 同样会在当前回合消耗一次计数。因此 `rounds` 覆盖的回合中，施加当回合通常已经行动过，真正被封锁的是后续 `rounds − 1` 个回合：
 >
-> | 传参 | 实际效果 |
-> |---|---|
-> | `rounds: 1` | **不封锁任何回合**（当回合末即归零）——想封锁下一回合必须传 2 |
-> | `rounds: 2`（眩晕 2 回合 / 麻痹 1 回合） | 封锁下一回合（约定 #1"实际封锁下一回合"、约定 #3） |
-> | `rounds: 3`（禁锢 3 回合） | 封锁下两个回合的主动技 |
+> | 传参                                     | 实际效果                                                     |
+> | ---------------------------------------- | ------------------------------------------------------------ |
+> | `rounds: 1`                              | **不封锁任何回合**（当回合末即归零）——想封锁下一回合必须传 2 |
+> | `rounds: 2`（眩晕 2 回合 / 麻痹 1 回合） | 封锁下一回合（约定 #1"实际封锁下一回合"、约定 #3）           |
+> | `rounds: 3`（禁锢 3 回合）               | 封锁下两个回合的主动技                                       |
 >
 > **换算口诀**：官方描述的"持续 N 回合"（N ≥ 2）直接传 N；官方描述"封锁下一回合"类的 1 回合效果（麻痹）传 **2**。
 
@@ -193,8 +193,8 @@ ctx.emit({ type: 'battleEnd', phase: 'roundEnd', ... });              // 骨架�
 #### ① `proc` —— 攻击结算中的概率触发标记
 
 ```ts
-ctx.emit({ type: 'proc', kind: 'trueDamage', label: '掣电一斩' });  // 命中前掷骰
-ctx.emit({ type: 'proc', kind: 'passive', label: '自性纯一' });     // 命中后掷骰
+ctx.emit({ type: 'proc', kind: 'trueDamage', label: '掣电一斩' }); // 命中前掷骰
+ctx.emit({ type: 'proc', kind: 'passive', label: '自性纯一' }); // 命中后掷骰
 ```
 
 - **何时发**：攻击动作/受击管线里掷骰命中了（真伤触发、攻击后被动触发）。
@@ -207,7 +207,7 @@ ctx.emit({ type: 'proc', kind: 'passive', label: '自性纯一' });     // 命�
 #### ② `stacks` —— 层数类私有状态的变化
 
 ```ts
-ctx.emitFor(ctx.self, { type: 'stacks', kind: 'stance', delta: 1, total: 1 });  // 刀势 +1
+ctx.emitFor(ctx.self, { type: 'stacks', kind: 'stance', delta: 1, total: 1 }); // 刀势 +1
 ctx.emitFor(ctx.self, { type: 'stacks', kind: 'stance', delta: -2, total: 0 }); // 清零（delta 为负）
 ```
 
@@ -229,23 +229,23 @@ ctx.emit({ type: 'passiveTrigger', label: '游云', detail: '敌方防御永久 
 
 ### 6.2 `passiveTrigger` 与 `proc` 的区别（不要混用）
 
-| 维度 | `passiveTrigger` | `proc` |
-|---|---|---|
-| 阶段 | 仅回合开始（roundStart，节点①） | 仅行动阶段（actions，攻击管线内） |
-| 语义 | 回合开始被动**整个被触发**（大效果的开端） | 攻击结算中**某个概率分支命中**（一次掷骰） |
-| 位置语义 | 无"相对伤害行"概念 | `kind` 决定相对 damage 行的前/后 |
-| 来源钩子 | `onRoundStart` | `onHit / onDamaged / activeSkill` |
+| 维度     | `passiveTrigger`                           | `proc`                                     |
+| -------- | ------------------------------------------ | ------------------------------------------ |
+| 阶段     | 仅回合开始（roundStart，节点①）            | 仅行动阶段（actions，攻击管线内）          |
+| 语义     | 回合开始被动**整个被触发**（大效果的开端） | 攻击结算中**某个概率分支命中**（一次掷骰） |
+| 位置语义 | 无"相对伤害行"概念                         | `kind` 决定相对 damage 行的前/后           |
+| 来源钩子 | `onRoundStart`                             | `onHit / onDamaged / activeSkill`          |
 
 ### 6.3 协议自动发出（钩子**不要**重复发）
 
-| 事件 | 发出点 |
-|---|---|
-| `roundStart / battleStart / actionBlocked / death / battleEnd` | 引擎骨架 |
-| `attackStart / damage / dodge / counter* / revive` | 攻击协议（`ctx.attack` 管线） |
-| `statusApply` | `ctx.block / defDown / atkDown / applyMark` |
-| `statusExpire` | 结算段（`settleBlocks/settleVars/sweepMarks`）与 `ctx.clearDebuffs` |
-| `shieldGain` | `ctx.shieldGain` |
-| `heal` | `ctx.heal` |
+| 事件                                                           | 发出点                                                              |
+| -------------------------------------------------------------- | ------------------------------------------------------------------- |
+| `roundStart / battleStart / actionBlocked / death / battleEnd` | 引擎骨架                                                            |
+| `attackStart / damage / dodge / counter* / revive`             | 攻击协议（`ctx.attack` 管线）                                       |
+| `statusApply`                                                  | `ctx.block / defDown / atkDown / applyMark`                         |
+| `statusExpire`                                                 | 结算段（`settleBlocks/settleVars/sweepMarks`）与 `ctx.clearDebuffs` |
+| `shieldGain`                                                   | `ctx.shieldGain`                                                    |
+| `heal`                                                         | `ctx.heal`                                                          |
 
 注：`counter` 反击伤害以 `damage(label: '幻象反击')` 呈现；护盾吸收量在 `damage.absorbed` 字段内，无独立事件。
 
@@ -294,8 +294,8 @@ ctx.emit({ type: 'passiveTrigger', label: '游云', detail: '敌方防御永久 
 
 ### 9.1 `vars` 的保留键（写入即有副作用）
 
-| 键 | 效果 | 生命周期 |
-|---|---|---|
+| 键         | 效果                                      | 生命周期                                                         |
+| ---------- | ----------------------------------------- | ---------------------------------------------------------------- |
 | `atkBonus` | 永久攻击变化值（正增负减），计入 `curAtk` | **永久**，跨回合存活；只经 `ctx.atkUp/atkDown(..., 'perm')` 写入 |
 | `defBonus` | 永久防御变化值（正增负减），计入 `curDef` | **永久**，跨回合存活；只经 `ctx.defUp/defDown(..., 'perm')` 写入 |
 

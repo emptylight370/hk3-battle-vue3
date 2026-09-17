@@ -1,6 +1,6 @@
-import type { ActorPanel, AttackDesc } from '@/core/types';
-import type { Ctx } from '@/core/context';
 import type { ActorState } from '@/core/actor';
+import type { Ctx } from '@/core/context';
+import type { ActorPanel, AttackDesc } from '@/core/types';
 
 /**
  * 角色钩子接口（全部可选）——"未实现即正常继续"。

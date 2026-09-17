@@ -1,9 +1,9 @@
 <script setup lang="ts">
+import ActorView from '@/components/ActorView.vue';
 import BatchPanel from '@/components/BatchPanel.vue';
 import BattleLog from '@/components/BattleLog.vue';
+import OddsCalc from '@/components/OddsCalc.vue';
 import { ref } from 'vue';
-import ActorView from './components/ActorView.vue';
-import OddsCalc from './components/OddsCalc.vue';
 
 const dark = ref(window.matchMedia('(prefers-color-scheme: dark)').matches);
 

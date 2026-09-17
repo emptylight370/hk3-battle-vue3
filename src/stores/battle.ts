@@ -33,9 +33,7 @@ export const useBattleStore = defineStore('battle', () => {
 
   // ---------- 派生 ----------
   const progressPercent = computed(() =>
-    progress.value.total > 0
-      ? Math.round((progress.value.done / progress.value.total) * 100)
-      : 0,
+    progress.value.total > 0 ? Math.round((progress.value.done / progress.value.total) * 100) : 0,
   );
 
   /** 胜率百分比（含平局），无结果时 null */

@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { computed, watch } from 'vue';
-import { ElMessage } from 'element-plus';
 import { useBattleStore } from '@/stores/battle';
+import { ElMessage } from 'element-plus';
+import { computed, watch } from 'vue';
 import ActorPicker from './ActorPicker.vue';
 
 const store = useBattleStore();

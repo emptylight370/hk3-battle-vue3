@@ -1,4 +1,10 @@
 [tools]
+lefthook = "latest"
 node = "24"
 pnpm = "12"
 prettier = "latest"
+
+[deps.lefthook]
+auto = true
+run = "lefthook install"
+sources = ["lefthook.yml"]

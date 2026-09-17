@@ -1,10 +1,10 @@
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
-import { dirname } from 'node:path'
-import { fileURLToPath } from 'node:url'
-import { describe, expect, it } from 'vitest'
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { describe, expect, it } from 'vitest';
 
-import { baselineOf, runBattle, type BattleBaseline } from './helpers'
-import type { VersionTag } from '@/core/registry'
+import { baselineOf, runBattle, type BattleBaseline } from './helpers';
+import type { VersionTag } from '@/core/registry';
 
 // ============================================================
 // 回归测试 —— 固定 seed 对局基准（版本化）
@@ -19,10 +19,10 @@ import type { VersionTag } from '@/core/registry'
 //    确属有意变更才更新基准并回填设计文档。
 // ============================================================
 
-const BASELINE_URL = new URL('./__baselines__/regression.json', import.meta.url)
+const BASELINE_URL = new URL('./__baselines__/regression.json', import.meta.url);
 // Windows 下 URL.pathname 是 "/D:/..."，直接交给 fs 会得到 "D:\D:\..."；必须经 fileURLToPath 转换
-const BASELINE_PATH = fileURLToPath(BASELINE_URL)
-const UPDATE = process.env.UPDATE_BASELINES === '1'
+const BASELINE_PATH = fileURLToPath(BASELINE_URL);
+const UPDATE = process.env.UPDATE_BASELINES === '1';
 
 /** 基准对局表：新版本/新角色合入后在此登记（version = 角色所属版本目录） */
 const CASES: [version: VersionTag, p1Id: string, p2Id: string, seed: number][] = [

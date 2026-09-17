@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { computed } from 'vue';
 import { useBattleStore } from '@/stores/battle';
+import { computed } from 'vue';
 
 // 双方角色选择器：直接绑定 store 的 p1Id / p2Id
 const props = defineProps<{ side: 'p1' | 'p2' }>();

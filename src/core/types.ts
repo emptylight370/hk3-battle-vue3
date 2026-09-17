@@ -65,8 +65,7 @@ export type BattleEvent = EventBase & // ---- 整场：战斗开始（round: 0�
     | { type: 'proc'; kind: 'trueDamage' | 'passive'; label: string } // 命中前/后概率标记
     | { type: 'death'; side: Side } // 跨阶段：标实际发生处
     // ---- settlement：状态结算 ----
-    | { type: 'statusApply'; status: StatusName; until: number; sourceId: string;
-        value?: number } // 带符号变化幅度（攻防增益 API 用）；until = -1 表示永久变化
+    | { type: 'statusApply'; status: StatusName; until: number; sourceId: string; value?: number } // 带符号变化幅度（攻防增益 API 用）；until = -1 表示永久变化
     | { type: 'statusExpire'; status: StatusName; sourceId?: string } // 到期统一在结算段扫出
     | { type: 'shieldGain'; value: number } // 官方日志有"获得 N 点护盾"行
     | { type: 'heal'; value: number }
