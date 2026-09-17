@@ -1,6 +1,6 @@
 import { fileURLToPath, URL } from 'node:url'
 
-import { defineConfig } from 'vite'
+import { defineConfig } from 'vitest/config'
 import vue from '@vitejs/plugin-vue'
 import vueDevTools from 'vite-plugin-vue-devtools'
 import AutoImport from 'unplugin-auto-import/vite'
@@ -29,5 +29,12 @@ export default defineConfig({
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url)),
     },
+  },
+  test: {
+    environment: 'node',
+    // 组件测试挂载 el-* 时，unplugin 会注入 element-plus 的样式导入；
+    // element-plus 默认被 externalize 由 Node 原生加载，.css 直接报错——
+    // 内联进 vitest 管线后样式导入被 stub。
+    server: { deps: { inline: [/element-plus/] } },
   },
 })

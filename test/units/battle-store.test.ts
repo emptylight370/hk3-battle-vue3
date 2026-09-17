@@ -94,3 +94,34 @@ describe('battle store — run() 状态机', () => {
     expect(s.result).toEqual(RESULT)
   })
 })
+
+describe('battle store — 种子', () => {
+  it('缺省手动模式：run 使用输入框种子，lastSeed 一致', async () => {
+    const s = useBattleStore()
+    expect(s.randomMode).toBe(false)
+    s.seed = 12345
+    mockRunBatch.mockResolvedValue(RESULT)
+    await s.run()
+    expect(mockRunBatch.mock.calls[0]![0].seed).toBe(12345)
+    expect(s.lastSeed).toBe(12345)
+    expect(s.seed).toBe(12345) // 手动模式不回写
+  })
+
+  it('随机模式：run 生成 32 位无符号随机种子，回写输入框并记录 lastSeed', async () => {
+    const s = useBattleStore()
+    s.randomMode = true
+    const seen = new Set<number>()
+    for (let i = 0; i < 20; i++) {
+      mockRunBatch.mockResolvedValue(RESULT)
+      await s.run()
+      const used = mockRunBatch.mock.calls[i]![0].seed
+      expect(used).toBeGreaterThanOrEqual(0)
+      expect(used).toBeLessThan(0x1_0000_0000)
+      expect(Number.isInteger(used)).toBe(true)
+      seen.add(used)
+      expect(s.lastSeed).toBe(used)
+      expect(s.seed).toBe(used) // 回写输入框，可复制复现
+    }
+    expect(seen.size).toBeGreaterThan(15) // 随机性抽查：20 次几乎不重复
+  })
+})

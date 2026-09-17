@@ -22,12 +22,14 @@ export const useBattleStore = defineStore('battle', () => {
   const count = ref(1000);
   const seed = ref(42);
   const logFirst = ref(true); // 首场携带事件流（时间轴数据源）
+  const randomMode = ref(false); // 种子随机模式：运行时自动生成随机种子，忽略输入框值
 
   // ---------- 运行状态 ----------
   const running = ref(false);
   const progress = ref({ done: 0, total: 0 });
   const result = ref<BatchResult | null>(null);
   const error = ref<string | null>(null);
+  const lastSeed = ref<number | null>(null); // 最近一次实际使用的种子（结果可复现的锚点）
 
   // ---------- 派生 ----------
   const progressPercent = computed(() =>
@@ -47,20 +49,30 @@ export const useBattleStore = defineStore('battle', () => {
   });
 
   // ---------- 动作 ----------
+
+  /** 随机种子：填满 32 位无符号空间（rng 内部 seed>>>0） */
+  function randomSeed(): number {
+    return Math.floor(Math.random() * 0x1_0000_0000);
+  }
+
   async function run(): Promise<void> {
     if (running.value) return;
     running.value = true;
     error.value = null;
     result.value = null;
-    progress.value = { done: 0, total: count.value };
+
+    // 随机模式：运行时生成随机种子并回写输入框（可复现、可复制）
+    const usedSeed = randomMode.value ? randomSeed() : seed.value;
+    if (randomMode.value) seed.value = usedSeed;
 
     try {
+      lastSeed.value = usedSeed; // 记录实际使用的种子，运行后展示
       result.value = await runBatch(
         {
           p1: p1Id.value,
           p2: p2Id.value,
           count: count.value,
-          seed: seed.value,
+          seed: usedSeed,
           logFirst: logFirst.value,
         },
         (done, total) => {
@@ -82,6 +94,7 @@ export const useBattleStore = defineStore('battle', () => {
     count,
     seed,
     logFirst,
+    randomMode,
     // 运行
     running,
     progress,
@@ -89,6 +102,7 @@ export const useBattleStore = defineStore('battle', () => {
     result,
     error,
     winRates,
+    lastSeed,
     // 动作
     run,
   };

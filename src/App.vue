@@ -1,8 +1,42 @@
-<script setup lang="ts"></script>
+<script setup lang="ts">
+import BatchPanel from '@/components/BatchPanel.vue'
+import BattleLog from '@/components/BattleLog.vue'
+</script>
 
 <template>
-  <h1>You did it!</h1>
-  <p>Visit <a href="https://vuejs.org/" target="_blank" rel="noopener">vuejs.org</a> to read the documentation</p>
+  <el-container class="layout">
+    <el-header class="header">
+      <h1 class="title">对战模拟器</h1>
+    </el-header>
+    <el-main class="main">
+      <el-row :gutter="16">
+        <el-col :xs="24" :md="10">
+          <BatchPanel />
+        </el-col>
+        <el-col :xs="24" :md="14">
+          <BattleLog />
+        </el-col>
+      </el-row>
+    </el-main>
+  </el-container>
 </template>
 
-<style scoped></style>
+<style scoped>
+.layout {
+  min-height: 100vh;
+}
+.header {
+  border-bottom: 1px solid var(--el-border-color-light);
+  display: flex;
+  align-items: center;
+}
+.title {
+  font-size: 18px;
+  margin: 0;
+}
+.main {
+  max-width: 1200px;
+  margin: 0 auto;
+  width: 100%;
+}
+</style>
