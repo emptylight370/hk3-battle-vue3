@@ -98,6 +98,8 @@ export class Actor {
   onLethal(_ctx: Ctx): boolean {
     return false;
   }
+  /** 自身被施加状态时的被动感知（封锁/降防/敌方标记；自身 vars 增益不触发） */
+  onStatusApply(_ctx: Ctx, _status: string, _sourceId: string): void {}
 
   /** ③ 结算：角色私有衰减；通用槽由 settle* 系列处理 */
   onSettle(_ctx: Ctx): void {}
@@ -180,6 +182,7 @@ const HOOK_KEYS = [
   'onHit',
   'onDamaged',
   'onLethal',
+  'onStatusApply',
   'onSettle',
   'snapshot',
   'restore',

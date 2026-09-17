@@ -25,6 +25,8 @@ export interface Hooks {
   onDamaged?(ctx: Ctx, atk: AttackDesc): void;
   /** 受击方：致命伤拦截，返回 true = 复活（回血由钩子自行设置自身 hp） */
   onLethal?(ctx: Ctx): boolean;
+  /** 自身被施加状态时的被动感知（封锁/降防/敌方标记；自身 vars 增益不触发） */
+  onStatusApply?(ctx: Ctx, status: string, sourceId: string): void;
   /** ③ 结算：角色私有衰减（层数 −1 等）；通用槽由引擎结算段处理 */
   onSettle?(ctx: Ctx): void;
   /** 产出自身状态快照（时间倒转用）；无快照能力保持缺省（返回 null） */

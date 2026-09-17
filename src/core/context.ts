@@ -93,6 +93,22 @@ export interface Ctx {
   resolveDeaths(): Outcome | null;
   /** 立即结束战斗（幂等），发 battleEnd——引擎回合上限平局走此入口 */
   finish(outcome: Outcome): void;
+
+  // ---- 负面状态查询与驱散（作用于自身）----
+
+  /** 枚举自身当前的外部负面状态（封锁计数/降防/敌方标记）；自身 vars 增益不算负面 */
+  ownDebuffs(): DebuffInfo[];
+  /** 清除自身全部外部负面状态（驱散）：清零计数 + 删除敌方标记，逐项发 statusExpire */
+  clearDebuffs(): void;
+}
+
+/** 负面状态描述（ownDebuffs 返回项） */
+export interface DebuffInfo {
+  kind: 'block' | 'defDown' | 'mark';
+  status: string;
+  rounds?: number; // 剩余计数（block/defDown）
+  value?: number; // 标记附加值
+  sourceId?: string; // 标记施加者
 }
 
 // ============================================================
@@ -276,6 +292,7 @@ export class BattleCtx implements Ctx {
       until: this.round + rounds - 1,
       sourceId: this.self.id,
     });
+    target.onStatusApply(this, status, this.self.id);
   }
 
   /** 施加者独占标记：数据挂 target，键 = '施加者id.状态名'；约定 #1 换算集中在此 */
@@ -283,6 +300,7 @@ export class BattleCtx implements Ctx {
     const until = this.round + duration - 1;
     this.target.marks[`${this.self.id}.${label}`] = { until, value };
     this.emitFor(this.target, { type: 'statusApply', status: label, until, sourceId: this.self.id });
+    this.target.onStatusApply(this, label, this.self.id);
   }
 
   /** 限时降防（刷新制，只降目标——约定 #11）：计数口径与 block 一致，结算段 −1 归零清除 */
@@ -295,6 +313,62 @@ export class BattleCtx implements Ctx {
       until: this.round + rounds - 1,
       sourceId: this.self.id,
     });
+    target.onStatusApply(this, '降防', this.self.id);
+  }
+
+  // ---------- 负面状态查询与驱散（作用于自身） ----------
+
+  /** 枚举自身当前的外部负面状态：封锁计数、降防、敌方标记（自身 vars 增益不算负面） */
+  ownDebuffs(): DebuffInfo[] {
+    const me = this.self;
+    const out: DebuffInfo[] = [];
+    if (me.stunRound > 0) {
+      out.push({ kind: 'block', status: me.blockStatus || '封锁', rounds: me.stunRound });
+    }
+    if (me.noActRound > 0) {
+      out.push({ kind: 'block', status: me.blockStatus || '封锁', rounds: me.noActRound });
+    }
+    if (me.defDownRounds > 0) {
+      out.push({ kind: 'defDown', status: '降防', rounds: me.defDownRounds });
+    }
+    for (const [key, m] of Object.entries(me.marks)) {
+      const dot = key.indexOf('.');
+      out.push({
+        kind: 'mark',
+        status: dot > 0 ? key.slice(dot + 1) : key,
+        sourceId: dot > 0 ? key.slice(0, dot) : undefined,
+        value: m.value,
+      });
+    }
+    return out;
+  }
+
+  /** 驱散：清除自身全部外部负面状态，逐项发 statusExpire（自身 vars 增益不受影响） */
+  clearDebuffs(): void {
+    const me = this.self;
+    if (me.stunRound > 0) {
+      me.stunRound = 0;
+      this.emitFor(me, { type: 'statusExpire', status: me.blockStatus || '封锁' });
+    }
+    if (me.noActRound > 0) {
+      me.noActRound = 0;
+      this.emitFor(me, { type: 'statusExpire', status: me.blockStatus || '封锁' });
+    }
+    me.blockStatus = '';
+    if (me.defDownRounds > 0) {
+      me.defDownRounds = 0;
+      me.defDown = 0;
+      this.emitFor(me, { type: 'statusExpire', status: '降防' });
+    }
+    for (const key of Object.keys(me.marks)) {
+      const dot = key.indexOf('.');
+      this.emitFor(me, {
+        type: 'statusExpire',
+        status: dot > 0 ? key.slice(dot + 1) : key,
+        sourceId: dot > 0 ? key.slice(0, dot) : undefined,
+      });
+      delete me.marks[key];
+    }
   }
 
   /** 施加者读取自己挂的标记（只做有效期判断） */

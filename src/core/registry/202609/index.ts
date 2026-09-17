@@ -1,4 +1,5 @@
 import type { CharacterDef } from '../types';
+import { seele } from './seele';
 import { vita } from './vita';
 import { xinadia } from './xinadia';
 
@@ -10,4 +11,5 @@ import { xinadia } from './xinadia';
 export const CHARACTERS_202609: Record<string, CharacterDef> = {
   [vita.id]: vita,
   [xinadia.id]: xinadia,
+  [seele.id]: seele,
 };

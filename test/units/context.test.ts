@@ -304,3 +304,65 @@ describe('emit — round/phase/side 自动补全', () => {
     expect(events.at(-1)).toMatchObject({ round: 7, phase: 'settlement', side: 'p2' })
   })
 })
+
+// ---------- 负面状态感知与驱散 ----------
+
+describe('onStatusApply — 被施加状态感知', () => {
+  it('block/defDown/applyMark 均触发目标 onStatusApply，携带状态名与施加者', () => {
+    const onStatusApply = vi.fn()
+    const { ctx, p2 } = setup(undefined, { onStatusApply })
+    ctx.block(p2, '眩晕', 2, 'action')
+    ctx.defDown(p2, 2, 3)
+    ctx.applyMark('标记', 2, 7)
+    expect(onStatusApply).toHaveBeenCalledTimes(3)
+    expect(onStatusApply).toHaveBeenNthCalledWith(1, ctx, '眩晕', 'p1')
+    expect(onStatusApply).toHaveBeenNthCalledWith(2, ctx, '降防', 'p1')
+    expect(onStatusApply).toHaveBeenNthCalledWith(3, ctx, '标记', 'p1')
+  })
+
+  it('自身 vars 增益不触发（协议只感知外部施加）', () => {
+    const onStatusApply = vi.fn()
+    const { ctx, p1 } = setup({ onStatusApply })
+    p1.vars.atkBonus = 5 // 直接写 vars 不经协议，无感知事件
+    expect(onStatusApply).not.toHaveBeenCalled()
+  })
+})
+
+describe('ownDebuffs / clearDebuffs — 负面状态枚举与驱散', () => {
+  it('枚举封锁/降防/敌方标记三类负面', () => {
+    const { ctx, p2 } = setup(undefined, undefined, 3)
+    ctx.block(p2, '眩晕', 2, 'action')
+    ctx.defDown(p2, 2, 3)
+    ctx.applyMark('标记', 2, 7)
+    ctx.beginAction(p2) // 以乙的视角自查
+    expect(ctx.ownDebuffs()).toEqual([
+      { kind: 'block', status: '眩晕', rounds: 2 },
+      { kind: 'defDown', status: '降防', rounds: 2 },
+      { kind: 'mark', status: '标记', sourceId: 'p1', value: 7 },
+    ])
+  })
+
+  it('无负面时返回空数组', () => {
+    const { ctx } = setup()
+    ctx.beginAction(ctx.p2)
+    expect(ctx.ownDebuffs()).toEqual([])
+  })
+
+  it('clearDebuffs 清零计数/删除标记，逐项发 statusExpire，自身 vars 增益不受影响', () => {
+    const { ctx, p2, events } = setup(undefined, undefined, 3)
+    ctx.block(p2, '眩晕', 2, 'action')
+    ctx.defDown(p2, 2, 3)
+    ctx.applyMark('标记', 2, 7)
+    p2.vars.atkBonus = 5 // 自身增益不应被驱散
+    ctx.beginAction(p2)
+    ctx.clearDebuffs()
+    expect(p2.stunRound).toBe(0)
+    expect(p2.defDown).toBe(0)
+    expect(p2.defDownRounds).toBe(0)
+    expect(p2.marks).toEqual({})
+    expect(p2.vars.atkBonus).toBe(5)
+    const expires = of(events, 'statusExpire')
+    expect(expires).toHaveLength(3)
+    expect(expires.map((e) => e.status)).toEqual(['眩晕', '降防', '标记'])
+  })
+})

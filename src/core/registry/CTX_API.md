@@ -113,6 +113,13 @@ ctx.defDown(target, 2, 3); // 目标 def −3，持续到本回合 +1 回合
 ctx.applyMark('标记', 2, 7); // duration 含施加回合（约定 #1），value 可选
 ctx.opponentMark('标记'); // 读取自己挂的标记；过期返回 undefined
 // → { until: number, value?: number }
+
+// 查询与驱散自身负面状态（作用于 self；希儿"清除自身负面"用）
+ctx.ownDebuffs();
+// → [{ kind: 'block', status: '眩晕', rounds: 2 },      // 封锁计数
+//     { kind: 'defDown', status: '降防', rounds: 2 },    // 降防
+//     { kind: 'mark', status: '标记', sourceId: 'bronya', value: 7 }] // 敌方标记
+ctx.clearDebuffs(); // 清零计数 + 删除敌方标记，逐项发 statusExpire；自身 vars 增益不受影响
 ```
 
 标记的三个细节：
@@ -167,6 +174,7 @@ ctx.emit({ type: 'battleEnd', phase: 'roundEnd', ... });              // 骨架�
 | `onHit`                                 | 命中后（攻击方）           | 本 Actor   | 受击方       |
 | `onDamaged`                             | 受击后，每段独立（受击方） | 攻击方     | 本 Actor     |
 | `onLethal`                              | 致命伤时（受击方）         | 攻击方     | 本 Actor     |
+| `onStatusApply`                         | 自身被施加状态时（瞬时）   | —          | 本 Actor     |
 | `onSettle`                              | 结算段（③）                | 本 Actor   | 对方         |
 
 注意：
