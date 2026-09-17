@@ -10,6 +10,7 @@ import { kelali } from './kelali';
 import { bronya } from './bronya';
 import { kiana } from './kiana';
 import { heliya } from './heliya';
+import { youyun } from './youyun';
 
 /**
  * 202609 版本角色表（数值以 2026-09 官方数据校准）
@@ -28,4 +29,5 @@ export const CHARACTERS_202609: Record<string, CharacterDef> = {
   [bronya.id]: bronya,
   [kiana.id]: kiana,
   [heliya.id]: heliya,
+  [youyun.id]: youyun,
 };
