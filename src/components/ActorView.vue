@@ -3,16 +3,14 @@ import { computed, ref } from 'vue';
 
 import { getCharacter, listCharacters } from '@/core/registry';
 
-const open = ref(true); // 折叠开关（默认展开）
+const open = ref(false); // 折叠开关（默认展开）
 const characters = listCharacters();
 const selectedId = ref(characters[0]?.id ?? '');
 
 /** 选中角色的完整定义（含 Hooks，但展示时只取数值字段） */
 const def = computed(() => (selectedId.value ? getCharacter(selectedId.value) : null));
 /** 版本标签（listCharacters 与注册表同源，按 id 反查） */
-const version = computed(
-  () => characters.find((c) => c.id === selectedId.value)?.version ?? '',
-);
+const version = computed(() => characters.find((c) => c.id === selectedId.value)?.version ?? '');
 /** vars 数值参数袋（如 rewindDepth 等，供查看） */
 const varsEntries = computed(() => Object.entries(def.value?.vars ?? {}));
 </script>
@@ -28,12 +26,7 @@ const varsEntries = computed(() => Object.entries(def.value?.vars ?? {}));
     <el-collapse-transition>
       <div v-show="open">
         <el-select v-model="selectedId" placeholder="选择角色" class="picker">
-          <el-option
-            v-for="c in characters"
-            :key="c.id"
-            :value="c.id"
-            :label="`[${c.version}] ${c.name}`"
-          />
+          <el-option v-for="c in characters" :key="c.id" :value="c.id" :label="`[${c.version}] ${c.name}`" />
         </el-select>
 
         <template v-if="def">
