@@ -121,4 +121,5 @@ export interface BatchResult {
   p1Win: number;
   p2Win: number;
   draw: number;
+  firstEvents?: BattleEvent[]; // 仅 logFirst 时携带：第 0 场（seed 本身）的完整事件流
 }
