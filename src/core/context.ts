@@ -62,14 +62,16 @@ export interface Ctx {
   /**
    * 完整攻击管线（攻击动作）：闪避判定 → 伤害 → 护盾/复活 → onDamaged → onHit
    * 伤害公式：raw = max(1, round(base × (mult ?? 1)) − 目标.curDef)
+   * @param desc 攻击描述（kind/base/label/mult/hits）
+   * @param who  生效目标，缺省 = ctx.target（受击钩子反击攻击方时传 ctx.self，如丽塔谍影重重）
    */
-  attack(desc: AttackDesc): HitResult;
-  /** 技能效果段：不判闪避、不触发攻击方钩子，但触发受击方 onDamaged（点燃/子弹/碎片） */
-  segment(base: number, label: string): HitResult;
-  /** 无视防御的伤害段，护盾照吸（芽衣追加） */
-  flat(base: number, label: string): HitResult;
-  /** 真伤：无视防御与护盾，最低 1（琪亚娜） */
-  pierce(base: number, label: string): HitResult;
+  attack(desc: AttackDesc, who?: Actor): HitResult;
+  /** 技能效果段：不判闪避、不触发攻击方钩子，但触发受击方 onDamaged（点燃/子弹/碎片）；who 缺省 = ctx.target */
+  segment(base: number, label: string, who?: Actor): HitResult;
+  /** 无视防御的伤害段，护盾照吸（芽衣追加）；who 缺省 = ctx.target */
+  flat(base: number, label: string, who?: Actor): HitResult;
+  /** 真伤：无视防御与护盾，最低 1（琪亚娜）；who 缺省 = ctx.target */
+  pierce(base: number, label: string, who?: Actor): HitResult;
 
   // ---- 资源与状态施加 ----
 
@@ -178,6 +180,8 @@ export class BattleCtx implements Ctx {
 
   // ---------- 事件 ----------
   emit(e: EventInput): void {
+    // 战斗结束后不再接受任何事件：battleEnd 恒为事件流的最后一条
+    if (this._finished) return;
     // 骨架事件可显式覆盖 round/phase；管线/角色事件自动补当前值
     this.events.push({ round: this.round, phase: this.phase, ...e } as BattleEvent);
   }
@@ -187,13 +191,10 @@ export class BattleCtx implements Ctx {
   }
 
   // ---------- 攻击协议（核心，kind 矩阵集中实现） ----------
-  attack(desc: AttackDesc): HitResult {
-    return this.attackInternal(desc, false);
-  }
 
-  private attackInternal(desc: AttackDesc, isCounter: boolean): HitResult {
+  private attackInternal(desc: AttackDesc, isCounter: boolean, who?: Actor): HitResult {
     if (this._finished) return { missed: true };
-    const t = this.target;
+    const t = who ?? this.target;
 
     // ① 攻击动作开始（segment 不发）
     if (desc.kind === 'attack') {
@@ -203,10 +204,10 @@ export class BattleCtx implements Ctx {
     // ② 受击方闪避（仅 attack；反击以 segment 发起天然不吃闪避）
     if (desc.kind === 'attack' && !t.beforeHit(this, desc)) {
       this.emit({ type: 'dodge', label: desc.label, side: this.sideOf(t) });
-      // 幻象反击：segment 再入（吃防御可反杀），depth 护栏防双闪避角色无限递归
+      // 幻象反击：segment 再入（吃防御可反杀），depth 护栏防双闪避角色无限递归。
+      // 交换行动方：闪避者反击原攻击方（反击通过 ctx.attack(desc, who) 指定目标）
       if (!isCounter && this.depth === 0) {
         this.depth++;
-        // 交换行动方：闪避者成为反击方，原攻击方成为受击方
         const prevSelf = this.self;
         const prevTarget = this.target;
         this.self = t;
@@ -278,14 +279,17 @@ export class BattleCtx implements Ctx {
   }
 
   // ---------- 快捷方式 ----------
-  segment(base: number, label: string): HitResult {
-    return this.attack({ kind: 'segment', base, label });
+  attack(desc: AttackDesc, who?: Actor): HitResult {
+    return this.attackInternal(desc, false, who);
   }
-  flat(base: number, label: string): HitResult {
-    return this.attack({ kind: 'flat', base, label });
+  segment(base: number, label: string, who?: Actor): HitResult {
+    return this.attackInternal({ kind: 'segment', base, label }, false, who);
   }
-  pierce(base: number, label: string): HitResult {
-    return this.attack({ kind: 'pierce', base, label });
+  flat(base: number, label: string, who?: Actor): HitResult {
+    return this.attackInternal({ kind: 'flat', base, label }, false, who);
+  }
+  pierce(base: number, label: string, who?: Actor): HitResult {
+    return this.attackInternal({ kind: 'pierce', base, label }, false, who);
   }
 
   heal(amount: number, who: Actor = this.self): void {
@@ -498,9 +502,9 @@ export class BattleCtx implements Ctx {
   /** 立即结束战斗（幂等）：发 battleEnd。引擎的回合上限平局也走此入口 */
   finish(outcome: Outcome): void {
     if (this._finished) return;
-    this._finished = true;
     this._outcome = outcome;
     this.emit({ type: 'battleEnd', phase: 'roundEnd', outcome, totalRounds: this.round });
+    this._finished = true; // 置于 emit 之后：battleEnd 自身不受守卫拦截
   }
 
   resolveDeaths(): Outcome | null {
