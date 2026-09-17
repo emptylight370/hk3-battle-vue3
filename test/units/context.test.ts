@@ -115,7 +115,7 @@ describe('attack — segment（技能效果段）', () => {
     const onHit = vi.fn()
     const onDamaged = vi.fn()
     const { ctx, events } = setup({ onHit }, { onDamaged, beforeHit: () => false })
-    ctx.segment(15, '点燃')
+    ctx.attack({ kind: 'segment', base: 15, label: '点燃' })
     expect(of(events, 'attackStart')).toHaveLength(0) // 效果段无 attackStart
     expect(of(events, 'dodge')).toHaveLength(0) // 不吃闪避
     expect(onHit).not.toHaveBeenCalled()
@@ -124,7 +124,7 @@ describe('attack — segment（技能效果段）', () => {
 
   it('吃防御', () => {
     const { ctx, p2 } = setup()
-    ctx.segment(15, '点燃') // 15 − 8 = 7
+    ctx.attack({ kind: 'segment', base: 15, label: '点燃' }) // 15 − 8 = 7
     expect(p2.hp).toBe(93)
   })
 })
@@ -133,7 +133,7 @@ describe('attack — flat / pierce（三级伤害入口）', () => {
   it('flat 无视防御、护盾照吸（芽衣追加）', () => {
     const { ctx, p2 } = setup()
     p2.shield = 3
-    ctx.flat(4, '追加') // raw 4（无视 def 8），护盾吸 3，实扣 1
+    ctx.attack({ kind: 'flat', base: 4, label: '追加' }) // raw 4（无视 def 8），护盾吸 3，实扣 1
     expect(p2.shield).toBe(0)
     expect(p2.hp).toBe(99)
   })
@@ -141,7 +141,7 @@ describe('attack — flat / pierce（三级伤害入口）', () => {
   it('pierce 无视防御和护盾，最低 1，事件带 trueDamage', () => {
     const { ctx, p2, events } = setup()
     p2.shield = 50
-    ctx.pierce(10, '真伤')
+    ctx.attack({ kind: 'pierce', base: 10, label: '真伤' })
     expect(p2.shield).toBe(50) // 护盾不动
     expect(p2.hp).toBe(90)
     expect(of(events, 'damage')[0]).toMatchObject({ dealt: 10, trueDamage: 10 })

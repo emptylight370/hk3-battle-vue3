@@ -65,13 +65,11 @@ export interface Ctx {
    * @param desc 攻击描述（kind/base/label/mult/hits）
    * @param who  生效目标，缺省 = ctx.target（受击钩子反击攻击方时传 ctx.self，如丽塔谍影重重）
    */
+  /**
+   * 唯一的伤害入口：四种伤害类型由 desc.kind 区分（attack/segment/flat/pierce）。
+   * @param who  生效目标，缺省 = ctx.target（受击钩子反击攻击方时传 ctx.self）
+   */
   attack(desc: AttackDesc, who?: Actor): HitResult;
-  /** 技能效果段：不判闪避、不触发攻击方钩子，但触发受击方 onDamaged（点燃/子弹/碎片）；who 缺省 = ctx.target */
-  segment(base: number, label: string, who?: Actor): HitResult;
-  /** 无视防御的伤害段，护盾照吸（芽衣追加）；who 缺省 = ctx.target */
-  flat(base: number, label: string, who?: Actor): HitResult;
-  /** 真伤：无视防御与护盾，最低 1（琪亚娜）；who 缺省 = ctx.target */
-  pierce(base: number, label: string, who?: Actor): HitResult;
 
   // ---- 资源与状态施加 ----
 
@@ -278,18 +276,9 @@ export class BattleCtx implements Ctx {
     return { missed: false, dealt, killed };
   }
 
-  // ---------- 快捷方式 ----------
+  // ---------- 伤害入口 ----------
   attack(desc: AttackDesc, who?: Actor): HitResult {
     return this.attackInternal(desc, false, who);
-  }
-  segment(base: number, label: string, who?: Actor): HitResult {
-    return this.attackInternal({ kind: 'segment', base, label }, false, who);
-  }
-  flat(base: number, label: string, who?: Actor): HitResult {
-    return this.attackInternal({ kind: 'flat', base, label }, false, who);
-  }
-  pierce(base: number, label: string, who?: Actor): HitResult {
-    return this.attackInternal({ kind: 'pierce', base, label }, false, who);
   }
 
   heal(amount: number, who: Actor = this.self): void {

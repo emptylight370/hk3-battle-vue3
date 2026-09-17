@@ -49,17 +49,20 @@ if (ctx.target.isAlive) {
 
 ## 3. 攻击 API —— kind 矩阵（最容易做错的点）
 
-| 方法                       | 闪避 | 攻击方 onHit | 受击方 onDamaged | 防御     | 护盾     | 用途                         |
-| -------------------------- | ---- | ------------ | ---------------- | -------- | -------- | ---------------------------- |
-| `ctx.attack(desc)`         | ✓    | ✓            | ✓                | 减       | 吸收     | 攻击动作（普攻/主动技主段）  |
-| `ctx.segment(base, label)` | ✗    | ✗            | ✓                | 减       | 吸收     | 技能效果段（点燃/子弹/碎片） |
-| `ctx.flat(base, label)`    | ✗    | ✗            | ✓                | **无视** | 吸收     | 无视防御追加（芽衣）         |
-| `ctx.pierce(base, label)`  | ✗    | ✗            | ✓                | **无视** | **无视** | 真伤，最低 1（琪亚娜）       |
+**唯一的伤害入口是 `ctx.attack(desc, who?)`**——四种伤害类型由 `desc.kind` 区分，不要再用单独的 segment/flat/pierce 函数（已移除）：
+
+| `desc.kind`               | 闪避 | 攻击方 onHit | 受击方 onDamaged | 防御     | 护盾     | 用途                         |
+| ------------------------- | ---- | ------------ | ---------------- | -------- | -------- | ---------------------------- |
+| `'attack'`                | ✓    | ✓            | ✓                | 减       | 吸收     | 攻击动作（普攻/主动技主段）  |
+| `'segment'`               | ✗    | ✗            | ✓                | 减       | 吸收     | 技能效果段（点燃/子弹/碎片） |
+| `'flat'`                  | ✗    | ✗            | ✓                | **无视** | 吸收     | 无视防御追加（芽衣）         |
+| `'pierce'`                | ✗    | ✗            | ✓                | **无视** | **无视** | 真伤，最低 1（琪亚娜）       |
 
 `ctx.attack` 的入参与出参：
 
 ```ts
 const r = ctx.attack({ kind: 'attack', base: 22, label: '灼光强袭', mult?: 1.5 });
+// who 可选：生效目标，缺省 = ctx.target（受击钩子反击攻击方时传 ctx.self）
 // HitResult 判别联合：
 //   { missed: true }                                  ← 被闪避（无伤害语义）
 //   { missed: false, dealt: number, killed: boolean }  ← dealt=计算伤害（不按剩余血截断）
@@ -74,7 +77,7 @@ if (!r.missed && !r.killed) {
 } // 击杀/闪避都不接后续段
 ```
 
-伤害公式：`raw = max(1, round(base × (mult ?? 1)) − 目标.curDef)`（JS 四舍五入约定）。
+伤害公式：`raw = max(1, round(base × (mult ?? 1)) − 目标.curDef)`（`flat/pierce` 无视防御，即 `max(1, round(base × mult))`）。
 
 > **`HitResult` 里没有护盾吸收量**：`dealt` 是"护盾吸收后的实扣血量"（致命一击时也可能大于目标剩余血量，不截断）。需要吸收量时从对应的 `damage` 事件读 `absorbed` 字段，或自行 `raw − dealt` 计算。
 
