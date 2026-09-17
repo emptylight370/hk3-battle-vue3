@@ -5,6 +5,7 @@ import { xinadia } from './xinadia';
 import { rita } from './rita';
 import { dreamer } from './dreamer';
 import { youlandaier } from './youlandaier';
+import { mei } from './mei';
 
 /**
  * 202609 版本角色表（数值以 2026-09 官方数据校准）
@@ -18,4 +19,5 @@ export const CHARACTERS_202609: Record<string, CharacterDef> = {
   [rita.id]: rita,
   [dreamer.id]: dreamer,
   [youlandaier.id]: youlandaier,
+  [mei.id]: mei,
 };
