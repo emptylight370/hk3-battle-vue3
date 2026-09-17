@@ -28,7 +28,7 @@ export const youyun: CharacterDef = {
       const result = ctx.rng.pick([1, 2, 3]);
       let t = 1;
       if (ctx.self.vars.double) {
-        ctx.emit({ type: 'proc', kind: 'passive', label: '绝对认真的炮击！' });
+        ctx.emit({ type: 'passiveTrigger', label: '绝对认真的炮击！', detail: '被动技能效果翻倍' });
         t = 2;
         ctx.self.vars.double = 0;
       }
