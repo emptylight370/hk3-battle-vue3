@@ -3,12 +3,34 @@ import BatchPanel from '@/components/BatchPanel.vue';
 import BattleLog from '@/components/BattleLog.vue';
 import OddsCalc from './components/OddsCalc.vue';
 import ActorView from './components/ActorView.vue';
+import { ref } from 'vue';
+import { Moon, Sunny } from '@element-plus/icons-vue';
+
+const dark = ref(false);
+
+function toggleDark() {
+  if (dark.value) {
+    document.documentElement.classList.add('dark');
+  } else {
+    document.documentElement.classList.remove('dark');
+  }
+}
+
+dark.value = window.matchMedia('(prefers-color-scheme: dark)').matches;
+toggleDark();
 </script>
 
 <template>
   <el-container class="layout">
     <el-header class="header">
       <h1 class="title">崩坏三斗蛐蛐模拟器</h1>
+      <el-switch
+        v-model="dark"
+        @change="toggleDark"
+        :active-icon="Moon"
+        :inactive-icon="Sunny"
+        class="dark-switch"
+      ></el-switch>
     </el-header>
     <el-main class="main">
       <el-row :gutter="16">
@@ -46,5 +68,10 @@ import ActorView from './components/ActorView.vue';
   max-width: 1200px;
   margin: 0 auto;
   width: 100%;
+}
+.dark-switch {
+  --el-switch-on-color: #3a3838;
+  position: absolute;
+  right: 30px;
 }
 </style>
