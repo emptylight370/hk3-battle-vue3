@@ -8,7 +8,7 @@ import ActorView from './components/ActorView.vue';
 <template>
   <el-container class="layout">
     <el-header class="header">
-      <h1 class="title">对战模拟器</h1>
+      <h1 class="title">崩坏三斗蛐蛐模拟器</h1>
     </el-header>
     <el-main class="main">
       <el-row :gutter="16">
