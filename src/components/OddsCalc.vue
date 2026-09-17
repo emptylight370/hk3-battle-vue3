@@ -8,9 +8,11 @@ const odd2 = ref(0);
 const rate = computed(() => {
   const total = odd1.value + odd2.value;
   if (total <= 0) return null;
-  // 概率 → 百分比，保留 1 位小数（四舍五入）
-  const pct = (n: number) => `${((n / total) * 100).toFixed(1)}%`;
-  return { r1: pct(odd1.value), r2: pct(odd2.value) };
+  const pct = (odd: number) => `${((odd / total) * 100).toFixed(1)}%`;
+  // r1 用 odd2 归一化（交叉互倒）
+  const r1 = pct(odd2.value);
+  const r2 = pct(odd1.value);
+  return { r1, r2 };
 });
 </script>
 

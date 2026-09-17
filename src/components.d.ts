@@ -35,5 +35,6 @@ declare module 'vue' {
     ElSwitch: typeof import('element-plus/es')['ElSwitch']
     ElTag: typeof import('element-plus/es')['ElTag']
     ElText: typeof import('element-plus/es')['ElText']
+    OddsCalc: typeof import('./components/OddsCalc.vue')['default']
   }
 }
