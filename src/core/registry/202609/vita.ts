@@ -18,6 +18,9 @@ export const vita: CharacterDef = {
   def: 7,
   speed: 27,
   activeInterval: 3,
+  vars: {
+    super: 0,
+  },
   // 主动技能
   activeSkill(ctx) {
     ctx.self.vars.tempAtk = 8;
@@ -27,7 +30,7 @@ export const vita: CharacterDef = {
   },
   // 被动技能
   onDamaged(ctx, _) {
-    if (ctx.rng.chance(0.35)) {
+    if (ctx.rng.chance(0.35) && ctx.target.isAlive) {
       ctx.block(ctx.target, '魅惑', 2, 'active');
     }
   },

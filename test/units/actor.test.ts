@@ -99,7 +99,7 @@ describe('createActor — 钩子绑定', () => {
     const a = createActor({
       ...baseDef,
       activeSkill() {
-        this.vars.touched = 1 // this 必须是实例，否则 vars 写不进去
+        this.vars!.touched = 1 // this 必须是实例，否则 vars 写不进去
       },
     })
     a.activeSkill(makeCtx())

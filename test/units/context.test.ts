@@ -28,7 +28,11 @@ function setup(p1Def?: Partial<CharacterDef>, p2Def?: Partial<CharacterDef>, rou
   return { ctx, p1, p2, events: ctx.events }
 }
 
-const of = (events: BattleEvent[], type: string) => events.filter((e) => e.type === type)
+const of = <T extends BattleEvent['type']>(
+  events: BattleEvent[],
+  type: T,
+): Extract<BattleEvent, { type: T }>[] =>
+  events.filter((e): e is Extract<BattleEvent, { type: T }> => e.type === type)
 
 // ---------- kind 矩阵：attack ----------
 

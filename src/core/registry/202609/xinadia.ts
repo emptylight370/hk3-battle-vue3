@@ -26,9 +26,9 @@ export const xinadia: CharacterDef = {
       ctx.emit({ type: 'proc', kind: 'passive', label: '影中曙光' });
       ctx.attack({ kind: 'attack', base: ctx.self.curAtk + 10, label: '普攻' });
       if (!ctx.self.vars.atkBonus || ctx.self.vars.atkBonus < 1) {
-        ctx.self.vars.atkBonus = 10;
+        ctx.self.vars.atkBonus = 1;
       } else {
-        ctx.self.vars.atkBonus += 10;
+        ctx.self.vars.atkBonus += 1;
       }
     } else {
       ctx.attack({ kind: 'attack', base: ctx.self.curAtk, label: '普攻' });
@@ -41,9 +41,9 @@ export const xinadia: CharacterDef = {
         ctx.emit({ type: 'proc', kind: 'passive', label: '魔法陨石' });
         ctx.attack({ kind: 'attack', base: ctx.self.curAtk + 10, label: '梦中的流星雨' });
         if (!ctx.self.vars.atkBonus || ctx.self.vars.atkBonus < 1) {
-          ctx.self.vars.atkBonus = 10;
+          ctx.self.vars.atkBonus = 1;
         } else {
-          ctx.self.vars.atkBonus += 10;
+          ctx.self.vars.atkBonus += 1;
         }
       } else {
         ctx.attack({ kind: 'attack', base: ctx.self.curAtk, label: '梦中的流星雨' });

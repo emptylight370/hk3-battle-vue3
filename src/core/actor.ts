@@ -45,6 +45,9 @@ export class Actor {
     this.maxHp = panel.hp;
     this.atkBase = panel.atk;
     this.defBase = panel.def;
+    // 克隆引用型字段：切断与注册表 def 的共享，防止跨战斗状态残留（确定性根基）
+    this.vars = { ...this.vars };
+    this.marks = { ...this.marks };
   }
 
   /** 当前攻击力 = atkBase + atkBonus（永久） + tempAtk（回合内） */

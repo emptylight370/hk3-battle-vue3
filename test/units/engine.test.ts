@@ -24,7 +24,11 @@ function battle(p1?: Partial<CharacterDef>, p2?: Partial<CharacterDef>, seed = 4
   return { b, p1: p1Actor, p2: p2Actor }
 }
 
-const of = (events: BattleEvent[], type: string) => events.filter((e) => e.type === type)
+const of = <T extends BattleEvent['type']>(
+  events: BattleEvent[],
+  type: T,
+): Extract<BattleEvent, { type: T }>[] =>
+  events.filter((e): e is Extract<BattleEvent, { type: T }> => e.type === type)
 
 // ---------- 先手 ----------
 
@@ -71,9 +75,9 @@ describe('封锁与状态到期', () => {
   it('眩晕封锁整回合：actionBlocked 带目标方，结算后到期恢复', () => {
     const { b } = battle(undefined, {
       onRoundStart(ctx) {
-        if (this.vars.applied !== 1) {
-          this.vars.applied = 1 // 只施加一次，否则每回合重新刷新永不过期
-          ctx.block(this, '眩晕', 1, 'action')
+        if (ctx.self.vars.applied !== 1) {
+          ctx.self.vars.applied = 1 // 只施加一次，否则每回合重新刷新永不过期
+          ctx.block(ctx.self, '眩晕', 1, 'action')
         }
       },
     })
@@ -93,9 +97,9 @@ describe('封锁与状态到期', () => {
           ctx.attack({ kind: 'attack', base: 16, label: '技' })
         },
         onRoundStart(ctx) {
-          if (this.vars.applied !== 1) {
-            this.vars.applied = 1
-            ctx.block(this, '禁锢', 3, 'active')
+          if (ctx.self.vars.applied !== 1) {
+            ctx.self.vars.applied = 1
+            ctx.block(ctx.self, '禁锢', 3, 'active')
           }
         },
       },
