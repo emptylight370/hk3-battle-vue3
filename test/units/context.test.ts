@@ -224,13 +224,12 @@ describe('applyMark / opponentMark — 施加者独占标记', () => {
   })
 })
 
-describe('defDown — 限时降防（约定 #11：只降目标，刷新制）', () => {
-  it('写入基类字段，curDef 立即生效，发 statusApply 事件', () => {
+describe('defDown — 限时降防（约定 #11：只降目标，同标记刷新）', () => {
+  it('curDef 立即生效，发 statusApply 事件', () => {
     const { ctx, p2, events } = setup(undefined, undefined, 2)
     expect(p2.curDef).toBe(8)
-    ctx.defDown(p2, 2, 3)
-    expect(p2.defDown).toBe(3)
-    expect(p2.defDownRounds).toBe(2)
+    ctx.defDown(p2, 3, 'temp', 2, '降防')
+    expect(p2.timedDef['降防']).toEqual({ value: -3, rounds: 2, status: '降防' })
     expect(p2.curDef).toBe(5)
     expect(of(events, 'statusApply')[0]).toMatchObject({
       status: '降防',
@@ -240,12 +239,19 @@ describe('defDown — 限时降防（约定 #11：只降目标，刷新制）', 
     })
   })
 
-  it('刷新制：重复施加覆盖前值', () => {
+  it('同标记刷新：重复施加覆盖前值', () => {
     const { ctx, p2 } = setup()
-    ctx.defDown(p2, 2, 3)
-    ctx.defDown(p2, 2, 4)
-    expect(p2.defDown).toBe(4)
-    expect(p2.defDownRounds).toBe(2)
+    ctx.defDown(p2, 3, 'temp', 2, '降防')
+    ctx.defDown(p2, 4, 'temp', 2, '降防')
+    expect(p2.timedDef['降防']).toEqual({ value: -4, rounds: 2, status: '降防' })
+    expect(Object.keys(p2.timedDef)).toHaveLength(1) // 不会并存两条
+  })
+
+  it('不同标记并存：效果叠加', () => {
+    const { ctx, p2 } = setup()
+    ctx.defDown(p2, 3, 'temp', 2, '降防')
+    ctx.defDown(p2, 2, 'temp', 2, '破甲')
+    expect(p2.curDef).toBe(8 - 3 - 2)
   })
 })
 
@@ -321,15 +327,15 @@ describe('攻防获得封锁与增减', () => {
     expect(p1.curDef).toBe(11) // 8 + 3
   })
 
-  it("atkUp/defUp 'temp' 累加临时增益，结算段清零", () => {
+  it("atkUp/defUp 'temp' 累加临时增益，结算段过期", () => {
     const { ctx, p1 } = setup()
     ctx.atkUp(p1, 8, 'temp')
     ctx.defUp(p1, 3, 'temp')
-    expect(p1.vars.tempAtk).toBe(8)
+    expect(p1.timedAtk['base']).toEqual({ value: 8, rounds: 1, status: 'base' })
     expect(p1.curAtk).toBe(24)
     expect(p1.curDef).toBe(11)
-    p1.settleVars(ctx) // 结算段清零
-    expect(p1.vars.tempAtk).toBeUndefined()
+    p1.settleTimed(ctx) // 结算段计数 −1 → 归零移除
+    expect(p1.timedAtk['base']).toBeUndefined()
     expect(p1.curAtk).toBe(16)
     expect(p1.curDef).toBe(8)
   })
@@ -363,13 +369,13 @@ describe('攻防获得封锁与增减', () => {
   it('atkDown 只降目标攻击，施加方不变；结算段过期恢复', () => {
     const { ctx, p1, p2, events } = setup(undefined, undefined, 2)
     expect(p2.curAtk).toBe(16)
-    ctx.atkDown(p2, 2, 5)
+    ctx.atkDown(p2, 5, 'temp', 2, '攻击降低')
     expect(p2.curAtk).toBe(11)
     expect(p1.curAtk).toBe(16)
     expect(of(events, 'statusApply')[0]).toMatchObject({ status: '攻击降低', side: 'p2' })
-    p2.settleVars(ctx)
-    p2.settleVars(ctx)
-    expect(p2.atkDown).toBe(0)
+    p2.settleTimed(ctx)
+    p2.settleTimed(ctx)
+    expect(p2.timedAtk['攻击降低']).toBeUndefined()
     expect(p2.curAtk).toBe(16)
     expect(of(events, 'statusExpire').at(-1)).toMatchObject({ status: '攻击降低' })
   })
@@ -394,7 +400,7 @@ describe('onStatusApply — 被施加状态感知', () => {
     const onStatusApply = vi.fn()
     const { ctx, p2 } = setup(undefined, { onStatusApply })
     ctx.block(p2, '眩晕', 2, 'action')
-    ctx.defDown(p2, 2, 3)
+    ctx.defDown(p2, 3, 'temp', 2, '降防')
     ctx.applyMark('标记', 2, 7)
     expect(onStatusApply).toHaveBeenCalledTimes(3)
     expect(onStatusApply).toHaveBeenNthCalledWith(1, ctx, '眩晕', 'p1')
@@ -414,12 +420,12 @@ describe('ownDebuffs / clearDebuffs — 负面状态枚举与驱散', () => {
   it('枚举封锁/降防/敌方标记三类负面', () => {
     const { ctx, p2 } = setup(undefined, undefined, 3)
     ctx.block(p2, '眩晕', 2, 'action')
-    ctx.defDown(p2, 2, 3)
+    ctx.defDown(p2, 3, 'temp', 2, '降防')
     ctx.applyMark('标记', 2, 7)
     ctx.beginAction(p2) // 以乙的视角自查
     expect(ctx.ownDebuffs()).toEqual([
       { kind: 'block', status: '眩晕', rounds: 2 },
-      { kind: 'defDown', status: '降防', rounds: 2 },
+      { kind: 'defDown', status: '降防', rounds: 2, value: -3 },
       { kind: 'mark', status: '标记', sourceId: 'p1', value: 7 },
     ])
   })
@@ -433,14 +439,13 @@ describe('ownDebuffs / clearDebuffs — 负面状态枚举与驱散', () => {
   it('clearDebuffs 清零计数/删除标记，逐项发 statusExpire，自身 vars 增益不受影响', () => {
     const { ctx, p2, events } = setup(undefined, undefined, 3)
     ctx.block(p2, '眩晕', 2, 'action')
-    ctx.defDown(p2, 2, 3)
+    ctx.defDown(p2, 3, 'temp', 2, '降防')
     ctx.applyMark('标记', 2, 7)
     p2.vars.atkBonus = 5 // 自身增益不应被驱散
     ctx.beginAction(p2)
     ctx.clearDebuffs()
     expect(p2.stunRound).toBe(0)
-    expect(p2.defDown).toBe(0)
-    expect(p2.defDownRounds).toBe(0)
+    expect(p2.timedDef['降防']).toBeUndefined()
     expect(p2.marks).toEqual({})
     expect(p2.vars.atkBonus).toBe(5)
     const expires = of(events, 'statusExpire')

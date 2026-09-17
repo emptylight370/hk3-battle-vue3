@@ -3,14 +3,13 @@ import type { CharacterDef } from './registry/types';
 import type { ActorPanel, AttackDesc, Marks, Side } from './types';
 
 /**
- * vars 状态袋中被派生属性消费的约定键（角色钩子读写；导出防拼写漂移）
- * vars 约定键：无前缀 = 永久效果（角色钩子维护）；temp 前缀 = 回合内效果（结算段每回合清零）
+ * vars 约定键：永久攻防变化值（正 = 提升，负 = 降低）。
+ * 只由 ctx.atkUp/atkDown/defUp/defDown 累加，角色钩子不要直写（会绕过封锁检查）。
+ * 限时变化不走 vars，见 timedAtk/timedDef。
  */
 export const VAR = {
   atkBonus: 'atkBonus',
   defBonus: 'defBonus',
-  tempAtk: 'tempAtk',
-  tempDef: 'tempDef',
 } as const;
 
 export class Actor {
@@ -28,12 +27,10 @@ export class Actor {
   shield = 0;
   stunRound = 0; // 眩晕/麻痹（封锁全部行动，结算段 −1）
   noActRound = 0; // 仅阻止主动技能（禁锢等，结算段 −1）
-  noGainAtkRound = 0; // 封锁攻击获得（结算段 −1；>0 时新的攻击增益无效）
-  noGainDefRound = 0; // 封锁防御获得（结算段 −1；>0 时新的防御增益无效）
-  atkDown = 0; // 当前降攻值（ctx.atkDown 施加，结算段归零时清除）
-  atkDownRounds = 0; // 降攻剩余回合数（含施加回合，结算段 −1）
-  defDown = 0; // 当前降防值（ctx.defDown 施加，结算段归零时清除）
-  defDownRounds = 0; // 降防剩余回合数（含施加回合，结算段 −1）
+  noGainAtkRound = 0; // 封锁攻击获得（结算段 −1；>0 时新的攻击提升无效）
+  noGainDefRound = 0; // 封锁防御获得（结算段 −1；>0 时新的防御提升无效）
+  timedAtk: Record<string, TimedChange> = {}; // 限时攻击变化：标记 → { value 带符号, rounds, status }
+  timedDef: Record<string, TimedChange> = {}; // 限时防御变化：同上；重复施加相同标记 = 刷新
   marks: Marks = {}; // 敌方施加状态
   vars: Record<string, number> = {}; // 我方施加状态
   _side: Side = 'p1'; // 引擎注入
@@ -52,18 +49,19 @@ export class Actor {
     // 克隆引用型字段：切断与注册表 def 的共享，防止跨战斗状态残留（确定性根基）
     this.vars = { ...this.vars };
     this.marks = { ...this.marks };
+    this.timedAtk = { ...this.timedAtk };
+    this.timedDef = { ...this.timedDef };
   }
 
-  /** 当前攻击力 = max(0, atkBase + atkBonus（永久） + tempAtk（回合内） − atkDown) */
+  /** 当前攻击力 = max(0, atkBase + atkBonus（永久变化值，正增负减） + Σ 限时攻击变化) */
   get curAtk(): number {
-    return Math.max(
-      0,
-      this.atkBase + (this.vars[VAR.atkBonus] ?? 0) + (this.vars[VAR.tempAtk] ?? 0) - this.atkDown,
-    );
+    const timed = Object.values(this.timedAtk).reduce((s, e) => s + e.value, 0);
+    return Math.max(0, this.atkBase + (this.vars[VAR.atkBonus] ?? 0) + timed);
   }
-  /** 当前防御 = max(0, defBase + defBonus（永久） + tempDef（回合内） − defDown) */
+  /** 当前防御 = max(0, defBase + defBonus（永久变化值） + Σ 限时防御变化) */
   get curDef(): number {
-    return Math.max(0, this.defBase + (this.vars[VAR.defBonus] ?? 0) + (this.vars[VAR.tempDef] ?? 0) - this.defDown);
+    const timed = Object.values(this.timedDef).reduce((s, e) => s + e.value, 0);
+    return Math.max(0, this.defBase + (this.vars[VAR.defBonus] ?? 0) + timed);
   }
   /** 是否存活（hp > 0） */
   get isAlive(): boolean {
@@ -126,17 +124,16 @@ export class Actor {
       }
     }
   }
-  /** 效果过期：临时增益清零；降攻/降防计数 −1、归零清值并发 statusExpire */
-  settleVars(ctx: Ctx): void {
-    for (const k of [VAR.tempAtk, VAR.tempDef]) delete this.vars[k];
-    for (const key of ['atkDownRounds', 'defDownRounds'] as const) {
-      if (this[key] > 0) {
-        this[key]--;
-        if (this[key] === 0) {
-          const isAtk = key === 'atkDownRounds';
-          if (isAtk) this.atkDown = 0;
-          else this.defDown = 0;
-          ctx.emitFor(this, { type: 'statusExpire', status: isAtk ? '攻击降低' : '降防' });
+  /** 限时变化结算：各标记计数 −1，归零移除并发 statusExpire（状态名 = 施加时的标记） */
+  settleTimed(ctx: Ctx): void {
+    for (const key of ['timedAtk', 'timedDef'] as const) {
+      const table = this[key];
+      for (const tag of Object.keys(table)) {
+        const e = table[tag]!;
+        e.rounds--;
+        if (e.rounds <= 0) {
+          ctx.emitFor(this, { type: 'statusExpire', status: e.status });
+          delete table[tag];
         }
       }
     }
@@ -183,6 +180,13 @@ export class Actor {
 // 快照数据：不透明容器，形状由产出它的角色自定义，外部只透传不解释
 export interface ActorState {
   [key: string]: unknown;
+}
+
+/** 限时攻防变化条目（timedAtk/timedDef 的值；重复施加相同标记 = 刷新覆盖） */
+export interface TimedChange {
+  value: number; // 带符号变化量（正 = 提升，负 = 降低）
+  rounds: number; // 剩余回合数（含施加回合）
+  status: string; // 状态名（statusApply/statusExpire 事件用）
 }
 
 // 注册表可覆写的钩子键（createActor 按此绑定函数体）

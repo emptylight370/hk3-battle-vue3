@@ -100,7 +100,7 @@ export class Battle {
     for (const a of this.order) {
       ctx.beginAction(a); // onSettle 中 heal/施加默认以自身为行动方
       a.settleBlocks(ctx); // 封锁计数 −1 → 归零发 statusExpire
-      a.settleVars(ctx); // temp 清零 / 降防过期
+      a.settleTimed(ctx); // 限时变化计数 −1 → 归零移除并发 statusExpire
       a.sweepMarks(ctx); // 敌方标记过期
       a.onSettle(ctx); // 角色私有衰减（层数 −1 等）
     }

@@ -19,7 +19,7 @@ export const rita: CharacterDef = {
   // 主动技能
   activeSkill(ctx) {
     ctx.attack({ kind: 'attack', base: 18, label: '幽影收割' });
-    ctx.defDown(ctx.target, 2, 3);
+    ctx.defDown(ctx.target, 3, 'temp', 2, '幽影收割');
   },
   // 被动技能
   beforeHit(ctx, _) {

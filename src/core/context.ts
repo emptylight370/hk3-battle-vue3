@@ -87,24 +87,26 @@ export interface Ctx {
    */
   block(target: Actor, status: StatusName, rounds: number, scope: BlockScope): void;
   /**
-   * 施加限时降防：只降目标（约定 #11），刷新制。
-   * 目标 curDef 立即生效；结算段计数 −1，归零清值并发 statusExpire('降防')
+   * 攻击变化（增益/减益统一入口）
+   * @param target   生效目标（封锁检查作用于它）
+   * @param value    变化幅度：正 = 提升，负 = 降低
+   * @param duration 'perm' 永久变化（累加 atkBonus，受攻击获得封锁约束）；'temp' 限时变化
+   * @param rounds   生效回合数，仅 'temp' 有效（默认 1 = 当前回合；2 = 覆盖本回合与下一回合）
+   * @param tag      状态标记，仅 'temp' 有效（默认 'base'）；重复施加相同标记 = 刷新
+   * @returns 是否实际生效（'perm' 时目标攻击获得被封锁返回 false）
    */
-  defDown(target: Actor, rounds: number, value: number): void;
-  /** 施加限时降攻：只降目标，刷新制；目标 curAtk 立即生效，结算段计数 −1 归零清除 */
-  atkDown(target: Actor, rounds: number, value: number): void;
+  atkUp(target: Actor, value: number, duration: GainDuration, rounds?: number, tag?: string): boolean;
   /**
-   * 攻击提升：按 duration 累加到目标的 atkBonus（永久）或 tempAtk（回合内，结算清零）。
-   * 封锁检查作用于**生效目标**（其 noGainAtkRound > 0 时静默无效）
-   * @returns 是否实际生效
+   * 攻击降低：atkUp 的减益方向（value 为降低幅度，正数）。
+   * 不受"攻击获得封锁"影响（封锁获得，不减益）
    */
-  atkUp(target: Actor, value: number, duration: GainDuration): boolean;
+  atkDown(target: Actor, value: number, duration?: GainDuration, rounds?: number, tag?: string): boolean;
   /**
-   * 防御提升：按 duration 累加到目标的 defBonus（永久）或 tempDef（回合内，结算清零）。
-   * 封锁检查作用于**生效目标**（其 noGainDefRound > 0 时静默无效）
-   * @returns 是否实际生效
+   * 防御变化（增益/减益统一入口）——参数语义同 atkUp
    */
-  defUp(target: Actor, value: number, duration: GainDuration): boolean;
+  defUp(target: Actor, value: number, duration: GainDuration, rounds?: number, tag?: string): boolean;
+  /** 防御降低：defUp 的减益方向——参数语义同 atkDown */
+  defDown(target: Actor, value: number, duration?: GainDuration, rounds?: number, tag?: string): boolean;
   /**
    * 施加者独占标记：数据挂在 target.marks（键 = '施加者id.状态名'），语义只有施加者读取。
    * until = 当前回合 + duration − 1（约定 #1 集中换算），并发 statusApply 事件
@@ -331,59 +333,99 @@ export class BattleCtx implements Ctx {
     this.target.onStatusApply(this, label, this.self.id);
   }
 
-  /** 限时降防（刷新制，只降目标——约定 #11）：计数口径与 block 一致，结算段 −1 归零清除 */
-  defDown(target: Actor, rounds: number, value: number): void {
-    target.defDown = value;
-    target.defDownRounds = rounds;
-    this.emitFor(target, {
-      type: 'statusApply',
-      status: '降防',
-      until: this.round + rounds - 1,
-      sourceId: this.self.id,
-    });
-    target.onStatusApply(this, '降防', this.self.id);
-  }
-
-  /** 限时降攻（刷新制，只降目标）：atkDown 计入 curAtk，结算段 −1 归零清除 */
-  atkDown(target: Actor, rounds: number, value: number): void {
-    target.atkDown = value;
-    target.atkDownRounds = rounds;
-    this.emitFor(target, {
-      type: 'statusApply',
-      status: '攻击降低',
-      until: this.round + rounds - 1,
-      sourceId: this.self.id,
-    });
-    target.onStatusApply(this, '攻击降低', this.self.id);
-  }
-
-  // ---------- 攻防提升（封锁期间新增益无效，已有值不影响；封锁检查作用于生效目标） ----------
+  // ---------- 攻防变化（增益/减益统一入口；封锁检查作用于生效目标） ----------
 
   /**
-   * 攻击提升：duration 'perm' 累加目标 atkBonus（永久）；'temp' 累加 tempAtk（回合内，结算清零）。
-   * 目标处于攻击获得封锁期间静默无效。
+   * 攻击变化（增益/减益统一入口）
+   * @param target   生效目标（封锁检查作用于它）
+   * @param value    变化幅度：正 = 提升，负 = 降低
+   * @param duration 'perm' 永久变化（累加 atkBonus，受攻击获得封锁约束）；'temp' 限时变化
+   * @param rounds   生效回合数，仅 'temp' 有效（默认 1 = 当前回合；2 = 覆盖本回合与下一回合）
+   * @param tag      状态标记，仅 'temp' 有效（默认 'base'）；重复施加相同标记 = 刷新
+   * @returns 是否实际生效（'perm' 时目标攻击获得被封锁返回 false）
    */
-  atkUp(target: Actor, value: number, duration: GainDuration): boolean {
-    if (target.noGainAtkRound > 0) return false;
-    const key = duration === 'temp' ? VAR.tempAtk : VAR.atkBonus;
-    target.vars[key] = (target.vars[key] ?? 0) + value;
+  atkUp(target: Actor, value: number, duration: GainDuration, rounds = 1, tag = 'base'): boolean {
+    if (target.noGainAtkRound > 0) return false; // 攻击获得封锁（增益方向受约束）
+    if (duration === 'perm') {
+      target.vars[VAR.atkBonus] = (target.vars[VAR.atkBonus] ?? 0) + value;
+      return true;
+    }
+    target.timedAtk[tag] = { value, rounds, status: tag };
+    this.emitFor(target, {
+      type: 'statusApply',
+      status: tag,
+      until: this.round + rounds - 1,
+      sourceId: this.self.id,
+    });
+    target.onStatusApply(this, tag, this.self.id);
     return true;
   }
 
   /**
-   * 防御提升：duration 'perm' 累加目标 defBonus（永久）；'temp' 累加 tempDef（回合内，结算清零）。
-   * 目标处于防御获得封锁期间静默无效。
+   * 攻击降低：atkUp 的减益方向（value 为降低幅度，正数）。
+   * 不受"攻击获得封锁"影响（封锁获得，不减益）。
    */
-  defUp(target: Actor, value: number, duration: GainDuration): boolean {
-    if (target.noGainDefRound > 0) return false;
-    const key = duration === 'temp' ? VAR.tempDef : VAR.defBonus;
-    target.vars[key] = (target.vars[key] ?? 0) + value;
+  atkDown(target: Actor, value: number, duration: GainDuration = 'temp', rounds = 1, tag = 'base'): boolean {
+    if (duration === 'perm') {
+      target.vars[VAR.atkBonus] = (target.vars[VAR.atkBonus] ?? 0) - value;
+      return true;
+    }
+    target.timedAtk[tag] = { value: -value, rounds, status: tag };
+    this.emitFor(target, {
+      type: 'statusApply',
+      status: tag,
+      until: this.round + rounds - 1,
+      sourceId: this.self.id,
+    });
+    target.onStatusApply(this, tag, this.self.id);
+    return true;
+  }
+
+  /**
+   * 防御变化（增益/减益统一入口）——参数语义同 atkUp。
+   * 永久变化累加 defBonus（正增负减，受防御获得封锁约束）；
+   * 限时变化写入 timedDef（value 带符号，相同标记刷新），结算段计数 −1 归零发 statusExpire。
+   */
+  defUp(target: Actor, value: number, duration: GainDuration, rounds = 1, tag = 'base'): boolean {
+    if (target.noGainDefRound > 0) return false; // 防御获得封锁（增益方向受约束）
+    if (duration === 'perm') {
+      target.vars[VAR.defBonus] = (target.vars[VAR.defBonus] ?? 0) + value;
+      return true;
+    }
+    target.timedDef[tag] = { value, rounds, status: tag };
+    this.emitFor(target, {
+      type: 'statusApply',
+      status: tag,
+      until: this.round + rounds - 1,
+      sourceId: this.self.id,
+    });
+    target.onStatusApply(this, tag, this.self.id);
+    return true;
+  }
+
+  /**
+   * 防御降低：defUp 的减益方向（value 为降低幅度，正数）。
+   * 不受"防御获得封锁"影响（封锁获得，不减益）。
+   */
+  defDown(target: Actor, value: number, duration: GainDuration = 'temp', rounds = 1, tag = 'base'): boolean {
+    if (duration === 'perm') {
+      target.vars[VAR.defBonus] = (target.vars[VAR.defBonus] ?? 0) - value;
+      return true;
+    }
+    target.timedDef[tag] = { value: -value, rounds, status: tag };
+    this.emitFor(target, {
+      type: 'statusApply',
+      status: tag,
+      until: this.round + rounds - 1,
+      sourceId: this.self.id,
+    });
+    target.onStatusApply(this, tag, this.self.id);
     return true;
   }
 
   // ---------- 负面状态查询与驱散（作用于自身） ----------
 
-  /** 枚举自身当前的外部负面状态：封锁/封锁获得/降攻/降防/敌方标记（自身 vars 增益不算负面） */
+  /** 枚举自身当前的外部负面状态：封锁/负向限时变化/敌方标记（自身永久增益不算负面） */
   ownDebuffs(): DebuffInfo[] {
     const me = this.self;
     const out: DebuffInfo[] = [];
@@ -392,11 +434,15 @@ export class BattleCtx implements Ctx {
         out.push({ kind: 'block', status: me.blockStatus[key] ?? '封锁', rounds: me[key] });
       }
     }
-    if (me.atkDownRounds > 0) {
-      out.push({ kind: 'atkDown', status: '攻击降低', rounds: me.atkDownRounds });
+    for (const [tag, e] of Object.entries(me.timedAtk)) {
+      if (e.value < 0) {
+        out.push({ kind: 'atkDown', status: e.status, rounds: e.rounds, value: e.value });
+      }
     }
-    if (me.defDownRounds > 0) {
-      out.push({ kind: 'defDown', status: '降防', rounds: me.defDownRounds });
+    for (const [tag, e] of Object.entries(me.timedDef)) {
+      if (e.value < 0) {
+        out.push({ kind: 'defDown', status: e.status, rounds: e.rounds, value: e.value });
+      }
     }
     for (const [key, m] of Object.entries(me.marks)) {
       const dot = key.indexOf('.');
@@ -410,7 +456,7 @@ export class BattleCtx implements Ctx {
     return out;
   }
 
-  /** 驱散：清除自身全部外部负面状态，逐项发 statusExpire（自身 vars 增益不受影响） */
+  /** 驱散：清除自身全部外部负面状态，逐项发 statusExpire（自身永久增益与正向限时增益不受影响） */
   clearDebuffs(): void {
     const me = this.self;
     for (const key of ['stunRound', 'noActRound', 'noGainAtkRound', 'noGainDefRound'] as const) {
@@ -420,13 +466,14 @@ export class BattleCtx implements Ctx {
         delete me.blockStatus[key];
       }
     }
-    for (const key of ['atkDownRounds', 'defDownRounds'] as const) {
-      if (me[key] > 0) {
-        me[key] = 0;
-        const isAtk = key === 'atkDownRounds';
-        if (isAtk) me.atkDown = 0;
-        else me.defDown = 0;
-        this.emitFor(me, { type: 'statusExpire', status: isAtk ? '攻击降低' : '降防' });
+    for (const key of ['timedAtk', 'timedDef'] as const) {
+      const table = me[key];
+      for (const tag of Object.keys(table)) {
+        const e = table[tag]!;
+        if (e.value < 0) {
+          this.emitFor(me, { type: 'statusExpire', status: e.status });
+          delete table[tag];
+        }
       }
     }
     for (const key of Object.keys(me.marks)) {

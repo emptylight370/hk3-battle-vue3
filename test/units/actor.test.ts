@@ -46,22 +46,24 @@ describe('Actor — 面板映射与满血开场', () => {
 })
 
 describe('Actor — 派生属性', () => {
-  it('curAtk = atkBase + atkBonus + tempAtk', () => {
+  it('curAtk = atkBase + atkBonus（永久） + Σ 限时攻击变化', () => {
     const a = createActor(baseDef)
     a.vars.atkBonus = 2
     expect(a.curAtk).toBe(18)
-    a.vars.tempAtk = 8
+    a.timedAtk['变身'] = { value: 8, rounds: 1, status: '变身' }
     expect(a.curAtk).toBe(26)
   })
 
-  it('curDef = defBase + defBonus + tempDef − defDown，最低 0', () => {
+  it('curDef = defBase + defBonus（永久，正增负减） + Σ 限时防御变化，最低 0', () => {
     const a = createActor(baseDef)
     a.vars.defBonus = 3
     expect(a.curDef).toBe(11)
-    a.defDown = 5
-    expect(a.curDef).toBe(6)
-    a.defDown = 99 // 减到 0 兜底，不为负
-    expect(a.curDef).toBe(0)
+    a.vars.defBonus = -5 // 永久减益（负数）
+    expect(a.curDef).toBe(3)
+    a.timedDef['变身'] = { value: 4, rounds: 2, status: '变身' }
+    expect(a.curDef).toBe(7)
+    a.timedDef['降防'] = { value: -99, rounds: 1, status: '降防' }
+    expect(a.curDef).toBe(0) // 减到 0 兜底，不为负
   })
 })
 

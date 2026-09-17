@@ -13,7 +13,7 @@
 
    | 类别                         | 字段                                                             | 钩子能否直接写                              |
    | ---------------------------- | ---------------------------------------------------------------- | ------------------------------------------- |
-   | 引擎级流程状态               | `hp / shield / stunRound / noActRound / defDown / defDownRounds` | ✘ 一律走 `ctx` 辅助方法                     |
+   | 引擎级流程状态               | `hp / shield / stunRound / noActRound / noGainAtkRound / noGainDefRound / timedAtk / timedDef` | ✘ 一律走 `ctx` 辅助方法                     |
    | 敌方施加状态（挂在目标身上） | `marks`                                                          | ✘ 走 `ctx.applyMark / opponentMark`         |
    | 我方私有状态袋               | `vars`（数值键值对）                                             | ✓ 只读写**自己的键**（`ctx.self.vars.xxx`） |
 
@@ -104,23 +104,19 @@ ctx.shieldGain(5); // 加护盾（作用于 self），发 shieldGain 事件
 // 封锁类状态（眩晕/麻痹/禁锢/变身封锁…同类合并，调用方给状态名）
 ctx.block(target, '眩晕', 2, 'action'); // scope 'action'：封锁全部行动（stunRound）
 ctx.block(target, '禁锢', 2, 'active'); // scope 'active'：仅阻止主动技能（noActRound）
+ctx.block(target, '禁锢', 2, 'atkUp'); // scope 'atkUp'：封锁攻击获得
+ctx.block(target, '禁锢', 2, 'defUp'); // scope 'defUp'：封锁防御获得
 ctx.block(ctx.self, '变身封锁', 1, 'action'); // 也可以封自己（薇塔变身）
 
-// 限时降防（刷新制，只降目标——约定 #11）
-ctx.defDown(target, 2, 3); // 目标 def −3，持续到本回合 +1 回合
-
-// 限时降攻（刷新制，只降目标）
-ctx.atkDown(target, 2, 5); // 目标 atk −5，结算段计数 −1 归零恢复
-
-// 攻防提升（第一个参数是生效目标；封锁检查作用于目标，返回 false = 被封锁）
-ctx.atkUp(ctx.self, 10, 'perm'); // 永久：目标 vars.atkBonus += 10
-ctx.atkUp(ctx.self, 8, 'temp'); // 回合内：tempAtk += 8，结算段清零
-ctx.defUp(ctx.self, 3, 'perm'); // 永久：defBonus += 3
-ctx.defUp(ctx.self, 3, 'temp'); // 回合内：tempDef += 3
-
-// 封锁攻防获得（scope = 'atkUp' / 'defUp'：只拦新增益，已有值不受影响，不封锁行动）
-ctx.block(target, '禁锢', 2, 'atkUp'); // 期间对目标的 ctx.atkUp 无效
-ctx.block(target, '禁锢', 2, 'defUp'); // 期间对目标的 ctx.defUp 无效
+// 攻防变化（增益/减益统一入口；第一个参数 = 生效目标）
+// value 带符号：正 = 提升，负 = 降低；duration 选存储通道；rounds/tag 仅 'temp' 有效
+ctx.atkUp(target, 10, 'perm'); // 永久提升：目标 vars.atkBonus += 10（受攻击获得封锁）
+ctx.atkUp(ctx.self, 8, 'temp'); // 回合内提升：timedAtk['base'] += 8，结算段过期
+ctx.atkUp(ctx.self, 1, 'perm'); // 希娜狄雅陨石：每颗永久 +1
+ctx.atkDown(target, 5, 'temp', 2, '削弱'); // 限时降攻 5，持续 2 回合，标记'削弱'
+ctx.defUp(target, 3, 'temp', 2, '结界'); // 限时加防 3，持续 2 回合，标记'结界'
+ctx.defDown(target, 3, 'temp', 2, '幽影收割'); // 丽塔降防 3，持续 2 回合（约定 #11）
+ctx.defDown(target, 4, 'perm'); // 永久降防 4（时间倒转：永久变化值 −4）
 
 // 施加者独占标记（数据挂目标，键 = '我的id.状态名'，语义只有我能读）
 ctx.applyMark('标记', 2, 7); // duration 含施加回合（约定 #1），value 可选
@@ -129,10 +125,10 @@ ctx.opponentMark('标记'); // 读取自己挂的标记；过期返回 undefined
 
 // 查询与驱散自身负面状态（作用于 self；希儿"清除自身负面"用）
 ctx.ownDebuffs();
-// → [{ kind: 'block', status: '眩晕', rounds: 2 },      // 封锁计数
-//     { kind: 'defDown', status: '降防', rounds: 2 },    // 降防
+// → [{ kind: 'block', status: '眩晕', rounds: 2 },       // 封锁计数
+//     { kind: 'defDown', status: '降防', rounds: 2, value: -3 }, // 负向限时变化
 //     { kind: 'mark', status: '标记', sourceId: 'bronya', value: 7 }] // 敌方标记
-ctx.clearDebuffs(); // 清零计数 + 删除敌方标记，逐项发 statusExpire；自身 vars 增益不受影响
+ctx.clearDebuffs(); // 清零计数 + 清除负向限时变化 + 删除敌方标记，逐项发 statusExpire
 ```
 
 标记的三个细节：
@@ -147,7 +143,21 @@ ctx.clearDebuffs(); // 清零计数 + 删除敌方标记，逐项发 statusExpir
 - 重复施加 = 刷新为满时长（不是叠加）；
 - 计数器由引擎结算段逐回合 −1，归零自动发 `statusExpire`（"眩晕状态结束"）。
 - **封锁状态名记录在字典中**（计数器字段名 → 状态名），多种封锁并存时各自独立到期、状态名互不干扰。
-- **攻防获得的封锁语义**：只拦新增益（`gainAtk/gainDef` 返回 false），目标已有值不受影响，也不封锁行动——对应"禁锢封锁攻防获得，不减益"的机制。
+- **攻防获得的封锁语义**：`ctx.block(..., 'atkUp'/'defUp')` 只拦增益方向的 `atkUp/defUp`（返回 false），目标已有值不受影响，也不封锁行动——对应"禁锢封锁攻防获得，不减益"的机制。
+- **`duration: 'perm'` 的减益不受封锁**：`atkDown/defDown` 是减益方向（内部写负值），即使目标处于攻防获得封锁期也照常生效。
+
+### 5.1 攻防变化的存储模型
+
+| 通道 | 存储 | 写入函数 | 生命周期 |
+|---|---|---|---|
+| 永久变化值 | `vars.atkBonus / defBonus`（带符号：正增负减） | `ctx.atkUp/defUp(target, v, 'perm')` 累加；`ctx.atkDown/defDown(target, v, 'perm')` 累减 | 永久，跨回合存活 |
+| 限时变化 | `timedAtk / timedDef: Record<标记, { value, rounds, status }>` | `ctx.atkUp/defUp(target, v, 'temp', rounds, tag)`；`ctx.atkDown/defDown(...)` 写负值 | 结算段逐回合 −1，归零移除并发 `statusExpire` |
+
+派生属性：`curAtk = max(0, atkBase + atkBonus + Σ timedAtk.value)`（def 同构）。
+
+- **不同标记并存叠加**：`atkDown(t, 5, 'temp', 2, '削弱A')` + `atkDown(t, 3, 'temp', 2, '削弱B')` → 合计 −8；同标记重复施加 = 刷新覆盖。
+- 限时变化的 `tag` 即状态名（statusApply/statusExpire 用），起一个可读的名字（如 `'幽影收割'`、`'变身'`）。
+- 角色钩子**不得直写** `vars.atkBonus/defBonus` 与 `timedAtk/timedDef`——它们只由这四个函数管理（直写会绕过封锁检查）。
 
 > ⚠️ **关键口径：封锁的"实际封锁回合数"= rounds − 1**。
 > 官方日志观察证实：**所有效果都在回合结束前统一结算一次**，与施加方先手/后手无关——后手施加的 debuff 同样会在当前回合消耗一次计数。因此 `rounds` 覆盖的回合中，施加当回合通常已经行动过，真正被封锁的是后续 `rounds − 1` 个回合：
@@ -283,16 +293,14 @@ ctx.emit({ type: 'passiveTrigger', label: '游云', detail: '敌方防御永久 
 
 | 键 | 效果 | 生命周期 |
 |---|---|---|
-| `atkBonus` | 计入 `curAtk` | **永久**，跨回合存活 |
-| `defBonus` | 计入 `curDef` | **永久**，跨回合存活 |
-| `tempAtk` | 计入 `curAtk` | **每回合结算段清零** |
-| `tempDef` | 计入 `curDef` | **每回合结算段清零** |
+| `atkBonus` | 永久攻击变化值（正增负减），计入 `curAtk` | **永久**，跨回合存活；只经 `ctx.atkUp/atkDown(..., 'perm')` 写入 |
+| `defBonus` | 永久防御变化值（正增负减），计入 `curDef` | **永久**，跨回合存活；只经 `ctx.defUp/defDown(..., 'perm')` 写入 |
 
-陷阱：**临时键的生命周期 = 写入时点 → 本回合结算段**。在 `roundStart` 里写 `tempAtk`，当回合行动吃到加成、回合末清零——这是"变身当回合生效"的实现方式；想跨回合的增益必须用无前缀键（永久）或每次重新施加。自定义键**避开这四个名字**，否则会被派生属性/结算段静默消费。
+陷阱：**永久变化值是带符号的**——负值即永久减益（时间倒转 −4 防就是这样实现的），驱散不清除它。回合内的攻防变化不再走 `vars`（`tempAtk/tempDef` 键已废弃），由 `timedAtk/timedDef` 承载并经 `ctx.atkUp(..., 'temp', ...)` 等 API 管理。自定义键避开这两个名字。
 
-### 9.2 封锁状态并存时 `statusExpire` 的归属
+### 9.2 封锁状态并存时的到期归属
 
-`blockStatus` 是单值：同一目标**同时**存在两种封锁（如眩晕 + 禁锢）时，它只记最后一次施加的状态名，计数器先归零的一方可能发出对方状态名的 `statusExpire`。当前 12 角色不存在此场景；若你的机制会叠加多种封锁，用 `applyMark` 承载额外的那个，不要连续 `block`。
+`blockStatus` 是字典（计数器字段名 → 状态名）：眩晕 + 禁锢 + 攻防获得封锁可以并存，各计数器独立递减、归零时按各自记录的状态名发 `statusExpire`，互不干扰。历史遗留的单值实现曾导致"先归零的一方发出对方状态名"的错行问题，现已修复——若发现到期状态名错行，优先检查是否绕过了 `ctx.block` 直改计数器。
 
 ### 9.3 快照必须包含你要回溯的一切
 

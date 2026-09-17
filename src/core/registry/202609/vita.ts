@@ -23,8 +23,8 @@ export const vita: CharacterDef = {
   },
   // 主动技能
   activeSkill(ctx) {
-    ctx.atkUp(ctx.self, 8, 'temp');
-    ctx.defUp(ctx.self, 3, 'temp');
+    ctx.atkUp(ctx.self, 8, 'temp', 1, '变身');
+    ctx.defUp(ctx.self, 3, 'temp', 1, '变身');
     ctx.attack({ kind: 'attack', base: ctx.self.curAtk, label: '蔽羽遮天' });
     ctx.self.vars.super = 1; // 变身标记
     ctx.emit({ type: 'stacks', kind: '变身', delta: 1, total: 1 });

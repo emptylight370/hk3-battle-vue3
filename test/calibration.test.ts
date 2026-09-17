@@ -121,7 +121,7 @@ describe('约定 #11 — 降防只降目标', () => {
     const p2 = createActor({ ...dummyDef, def: 8 });
     const { ctx, p1 } = rigged(true);
     const before = p1.curDef;
-    ctx.defDown(p2, 2, 3);
+    ctx.defDown(p2, 3, 'temp', 2, '降防'); // 降 3，持续 2 回合
     expect(p2.curDef).toBe(8 - 3);
     expect(p1.curDef).toBe(before);
   });
