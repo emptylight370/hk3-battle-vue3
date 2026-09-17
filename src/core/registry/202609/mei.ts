@@ -31,7 +31,7 @@ export const mei: CharacterDef = {
         ctx.emit({ type: 'proc', kind: 'trueDamage', label: '掣电一斩' });
         ctx.attack({ kind: 'pierce', base: ctx.self.maxHp * 0.08, label: '掣电一斩' });
       }
-    } else if (ctx.self.vars.blade) {
+    } else {
       if (ctx.rng.chance(0.05)) {
         ctx.emit({ type: 'proc', kind: 'trueDamage', label: '掣电一斩' });
         ctx.attack({ kind: 'pierce', base: ctx.self.maxHp * 0.04, label: '掣电一斩' });

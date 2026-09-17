@@ -1,29 +1,33 @@
 import { Battle } from '@/core/engine';
 import { createActor, type Actor } from '@/core/actor';
-import { getCharacter } from '@/core/registry';
+import { getCharacterIn, LATEST_VERSION, type VersionTag } from '@/core/registry';
 import type { CharacterDef } from '@/core/registry/types';
 import type { BattleEvent, BattleResult } from '@/core/types';
 
 // ============================================================
-// 测试共享工具 —— 回归 / 官方日志复现 / 角色单测共用
+// 测试共享工具 —— 回归 / 角色单测 / 批量层共用
+//
+// 角色一律按版本取用（getCharacterIn）：回归测试钉死版本数据，
+// 后续合入新版本注册表时，旧测试继续测旧版本，不随聚合表漂移。
 // ============================================================
 
-/** 按注册表 id 取角色定义（未注册即抛错） */
-export function byId(id: string): CharacterDef {
-  return getCharacter(id);
+/** 按版本 + id 取角色定义（该版本内未注册即抛错，不跨版本回退；缺省 = 最新版本） */
+export function byId(id: string, version: VersionTag = LATEST_VERSION): CharacterDef {
+  return getCharacterIn(version, id);
 }
 
 /**
- * 按注册表 id 构建并运行一场战斗。
+ * 按注册表 id 构建并运行一场战斗（版本化取角，缺省 = 最新版本）。
  * 同 seed 逐事件复现；返回结果附带双方 Actor 引用（断言终态用）。
  */
 export function runBattle(
   p1Id: string,
   p2Id: string,
   seed: number,
+  version: VersionTag = LATEST_VERSION,
 ): BattleResult & { p1: Actor; p2: Actor } {
-  const p1 = createActor(byId(p1Id));
-  const p2 = createActor(byId(p2Id));
+  const p1 = createActor(byId(p1Id, version));
+  const p2 = createActor(byId(p2Id, version));
   const b = new Battle(p1, p2, seed);
   const r = b.run();
   return { ...r, p1, p2 };
@@ -35,11 +39,6 @@ export function of<T extends BattleEvent['type']>(
   type: T,
 ): Extract<BattleEvent, { type: T }>[] {
   return events.filter((e): e is Extract<BattleEvent, { type: T }> => e.type === type);
-}
-
-/** 伤害序列（逐段 dealt，按发出顺序）——官方日志对账的主对账物 */
-export function damageSeq(events: BattleEvent[]): number[] {
-  return of(events, 'damage').map((e) => (e as { dealt: number }).dealt);
 }
 
 /**
@@ -59,27 +58,4 @@ export interface BattleBaseline {
 /** 生成一场对局的基准快照 */
 export function baselineOf(r: BattleResult): BattleBaseline {
   return { outcome: r.outcome, rounds: r.rounds, sig: fullSig(r.events) };
-}
-
-/**
- * 种子扫描：在 [from, to] 中寻找"伤害序列逐点匹配 expected 前缀"的种子。
- * 官方日志复现的第一步——先扫种子，再对找到的种子做逐点断言。
- */
-export function scanSeed(
-  p1Id: string,
-  p2Id: string,
-  expected: number[],
-  from = 1,
-  to = 20000,
-): number[] {
-  const hits: number[] = [];
-  for (let seed = from; seed <= to; seed++) {
-    const r = runBattle(p1Id, p2Id, seed);
-    const seq = damageSeq(r.events);
-    if (seq.length >= expected.length && expected.every((v, i) => seq[i] === v)) {
-      hits.push(seed);
-      if (hits.length >= 5) break; // 找到几个够用即止
-    }
-  }
-  return hits;
 }

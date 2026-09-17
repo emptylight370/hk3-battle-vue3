@@ -1,42 +1,50 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { dirname } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 
 import { baselineOf, runBattle, type BattleBaseline } from './helpers'
+import type { VersionTag } from '@/core/registry'
 
 // ============================================================
-// 回归测试 —— 固定 seed 对局基准
+// 回归测试 —— 固定 seed 对局基准（版本化）
 //
 // 用法：
-// 1. 新角色合入后，在 CASES 登记基准对局 [p1Id, p2Id, seed]；
+// 1. 在 CASES 登记基准对局 [version, p1Id, p2Id, seed]；
+//    角色一律按版本取用（getCharacterIn，不跨版本回退）——
+//    合入新版本注册表后，旧 CASES 继续测旧版本数据，不随聚合表漂移。
 // 2. 首次生成基准：UPDATE_BASELINES=1 pnpm test（PowerShell：
 //    $env:UPDATE_BASELINES='1'; pnpm test），确认数值合理后提交 json；
 // 3. 此后任何代码改动导致基准变化 = 行为漂移，必须查明原因，
-//    确属有意变更才更新基准并回填设计文档的校准记录。
+//    确属有意变更才更新基准并回填设计文档。
 // ============================================================
 
-const BASELINE_PATH = new URL('./__baselines__/regression.json', import.meta.url)
+const BASELINE_URL = new URL('./__baselines__/regression.json', import.meta.url)
+// Windows 下 URL.pathname 是 "/D:/..."，直接交给 fs 会得到 "D:\D:\..."；必须经 fileURLToPath 转换
+const BASELINE_PATH = fileURLToPath(BASELINE_URL)
 const UPDATE = process.env.UPDATE_BASELINES === '1'
 
-/** 基准对局表：新角色合入后在此登记 */
-const CASES: [p1Id: string, p2Id: string, seed: number][] = [
-  // TODO(M1): 角色齐全后登记，如 ['bronya', 'korali', 42]
+/** 基准对局表：新版本/新角色合入后在此登记（version = 角色所属版本目录） */
+const CASES: [version: VersionTag, p1Id: string, p2Id: string, seed: number][] = [
+  ['202609', 'bronya', 'kelali', 42],
+  ['202609', 'seele', 'xinadia', 42],
+  ['202609', 'kiana', 'mei', 7],
 ];
 
-const key = ([p1, p2, seed]: (typeof CASES)[number]) => `${p1}vs${p2}@${seed}`;
+const key = ([v, p1, p2, seed]: (typeof CASES)[number]) => `${v}.${p1}vs${p2}@${seed}`;
 
 // ---------- 确定性自检（不依赖基准文件，任何时期都有效） ----------
 
 describe('确定性自检', () => {
   it('同 seed 两次运行，事件流逐条相等', () => {
-    const r1 = runBattle('seele', 'xinadia', 42);
-    const r2 = runBattle('seele', 'xinadia', 42);
+    const r1 = runBattle('seele', 'xinadia', 42, '202609');
+    const r2 = runBattle('seele', 'xinadia', 42, '202609');
     expect(baselineOf(r1)).toEqual(baselineOf(r2));
   });
 
   it('不同 seed 产生不同事件流（排除退化）', () => {
-    const r1 = runBattle('seele', 'xinadia', 42);
-    const r2 = runBattle('seele', 'xinadia', 43);
+    const r1 = runBattle('seele', 'xinadia', 42, '202609');
+    const r2 = runBattle('seele', 'xinadia', 43, '202609');
     expect(baselineOf(r1).sig).not.toBe(baselineOf(r2).sig);
   });
 });
@@ -56,9 +64,10 @@ d('回归基准对局', () => {
         ? JSON.parse(readFileSync(BASELINE_PATH, 'utf-8'))
         : {};
       for (const c of CASES) {
-        out[key(c)] = baselineOf(runBattle(...c));
+        const [v, p1, p2, seed] = c;
+        out[key(c)] = baselineOf(runBattle(p1, p2, seed, v));
       }
-      mkdirSync(dirname(BASELINE_PATH.pathname), { recursive: true });
+      mkdirSync(dirname(BASELINE_PATH), { recursive: true });
       writeFileSync(BASELINE_PATH, JSON.stringify(out, null, 2));
       expect(Object.keys(out).length).toBeGreaterThan(0);
     });
@@ -76,9 +85,9 @@ d('回归基准对局', () => {
     }
   });
 
-  it.each(CASES)('%s vs %s @%i 与基准一致', (p1, p2, seed) => {
-    const k = key([p1, p2, seed]);
-    const r = runBattle(p1, p2, seed);
+  it.each(CASES)('%s: %s vs %s @%i 与基准一致', (v, p1, p2, seed) => {
+    const k = key([v, p1, p2, seed]);
+    const r = runBattle(p1, p2, seed, v);
     expect(baselineOf(r)).toEqual(baselines[k]);
   });
 });

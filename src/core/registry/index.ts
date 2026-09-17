@@ -32,6 +32,20 @@ export function getCharacter(id: string): CharacterDef {
   return def;
 }
 
+/**
+ * 版本化取角：只在指定版本的表中查找，跨版本不回退。
+ *
+ * - 供回归测试等需要"钉死版本数据"的场景使用；
+ * - 新版本合入后，带旧版本参数的既有测试继续测旧版本数据，
+ *   不会因聚合表被新版本覆盖而漂移；
+ * - 版本不存在或该版本内无此 id 均抛错（与聚合取角同样 fail fast）。
+ */
+export function getCharacterIn(version: VersionTag, id: string): CharacterDef {
+  const def = TABLES[version]?.[id];
+  if (!def) throw new Error(`版本 ${version} 中未注册的角色 id: ${id}`);
+  return def;
+}
+
 /** 供 UI 角色选择器渲染的列表（带版本标签） */
 export function listCharacters(): { id: string; name: string; version: VersionTag }[] {
   return VERSIONS.flatMap((version) =>
