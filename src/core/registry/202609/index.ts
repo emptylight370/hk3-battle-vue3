@@ -8,6 +8,7 @@ import { youlandaier } from './youlandaier';
 import { mei } from './mei';
 import { kelali } from './kelali';
 import { bronya } from './bronya';
+import { kiana } from './kiana';
 
 /**
  * 202609 版本角色表（数值以 2026-09 官方数据校准）
@@ -24,4 +25,5 @@ export const CHARACTERS_202609: Record<string, CharacterDef> = {
   [mei.id]: mei,
   [kelali.id]: kelali,
   [bronya.id]: bronya,
+  [kiana.id]: kiana,
 };
