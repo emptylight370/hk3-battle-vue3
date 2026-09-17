@@ -12,6 +12,7 @@ export {}
 declare module 'vue' {
   export interface GlobalComponents {
     ActorPicker: typeof import('./components/ActorPicker.vue')['default']
+    ActorView: typeof import('./components/ActorView.vue')['default']
     BatchPanel: typeof import('./components/BatchPanel.vue')['default']
     BattleLog: typeof import('./components/BattleLog.vue')['default']
     ElButton: typeof import('element-plus/es')['ElButton']
@@ -21,6 +22,8 @@ declare module 'vue' {
     ElCollapseItem: typeof import('element-plus/es')['ElCollapseItem']
     ElCollapseTransition: typeof import('element-plus/es')['ElCollapseTransition']
     ElContainer: typeof import('element-plus/es')['ElContainer']
+    ElDescriptions: typeof import('element-plus/es')['ElDescriptions']
+    ElDescriptionsItem: typeof import('element-plus/es')['ElDescriptionsItem']
     ElDivider: typeof import('element-plus/es')['ElDivider']
     ElEmpty: typeof import('element-plus/es')['ElEmpty']
     ElForm: typeof import('element-plus/es')['ElForm']

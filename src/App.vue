@@ -2,6 +2,7 @@
 import BatchPanel from '@/components/BatchPanel.vue';
 import BattleLog from '@/components/BattleLog.vue';
 import OddsCalc from './components/OddsCalc.vue';
+import ActorView from './components/ActorView.vue';
 </script>
 
 <template>
@@ -17,8 +18,11 @@ import OddsCalc from './components/OddsCalc.vue';
         <el-col :xs="24" :md="14">
           <BattleLog />
         </el-col>
-        <el-col>
+        <el-col :xs="24" :md="10">
           <OddsCalc />
+        </el-col>
+        <el-col :xs="24" :md="14">
+          <ActorView />
         </el-col>
       </el-row>
     </el-main>
