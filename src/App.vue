@@ -1,12 +1,11 @@
 <script setup lang="ts">
 import BatchPanel from '@/components/BatchPanel.vue';
 import BattleLog from '@/components/BattleLog.vue';
-import OddsCalc from './components/OddsCalc.vue';
-import ActorView from './components/ActorView.vue';
 import { ref } from 'vue';
-import { Moon, Sunny } from '@element-plus/icons-vue';
+import ActorView from './components/ActorView.vue';
+import OddsCalc from './components/OddsCalc.vue';
 
-const dark = ref(false);
+const dark = ref(window.matchMedia('(prefers-color-scheme: dark)').matches);
 
 function toggleDark() {
   if (dark.value) {
@@ -15,9 +14,6 @@ function toggleDark() {
     document.documentElement.classList.remove('dark');
   }
 }
-
-dark.value = window.matchMedia('(prefers-color-scheme: dark)').matches;
-toggleDark();
 </script>
 
 <template>
@@ -27,8 +23,8 @@ toggleDark();
       <el-switch
         v-model="dark"
         @change="toggleDark"
-        :active-icon="Moon"
-        :inactive-icon="Sunny"
+        active-text="NIGHT"
+        inactive-text="DAY"
         class="dark-switch"
       ></el-switch>
     </el-header>
@@ -70,7 +66,8 @@ toggleDark();
   width: 100%;
 }
 .dark-switch {
-  --el-switch-on-color: #3a3838;
+  --el-switch-on-color: #272525;
+  /* --el-switch-off-color: #818080; */
   position: absolute;
   right: 30px;
 }
