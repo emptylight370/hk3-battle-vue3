@@ -247,6 +247,27 @@ describe('defDown — 限时降防（约定 #11：只降目标，同标记刷新
     expect(Object.keys(p2.timedDef)).toHaveLength(1) // 不会并存两条
   })
 
+  it('永久变化也发 statusApply（until=-1，带符号幅度）——界面日志需展示效果描述', () => {
+    const { ctx, p2, events } = setup()
+    ctx.defDown(p2, 2, 'perm')
+    expect(p2.vars.defBonus).toBe(-2)
+    expect(p2.curDef).toBe(6)
+    expect(of(events, 'statusApply')[0]).toMatchObject({
+      status: '防御降低',
+      until: -1, // 永久变化约定
+      value: -2,
+      sourceId: 'p1',
+      side: 'p2',
+    })
+
+    ctx.atkUp(p2, 3, 'perm')
+    expect(of(events, 'statusApply')[1]).toMatchObject({
+      status: '攻击提升',
+      until: -1,
+      value: 3,
+    })
+  })
+
   it('不同标记并存：效果叠加', () => {
     const { ctx, p2 } = setup()
     ctx.defDown(p2, 3, 'temp', 2, '降防')

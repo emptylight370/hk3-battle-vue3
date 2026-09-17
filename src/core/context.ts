@@ -341,6 +341,15 @@ export class BattleCtx implements Ctx {
     if (target.noGainAtkRound > 0) return false; // 攻击获得封锁（增益方向受约束）
     if (duration === 'perm') {
       target.vars[VAR.atkBonus] = (target.vars[VAR.atkBonus] ?? 0) + value;
+      // 永久变化也发事件（until = -1 约定为永久），否则界面日志只有被动触发无效果描述
+      this.emitFor(target, {
+        type: 'statusApply',
+        status: '攻击提升',
+        until: -1,
+        sourceId: this.self.id,
+        value,
+      });
+      target.onStatusApply(this, '攻击提升', this.self.id);
       return true;
     }
     target.timedAtk[tag] = { value, rounds, status: tag };
@@ -361,6 +370,14 @@ export class BattleCtx implements Ctx {
   atkDown(target: Actor, value: number, duration: GainDuration = 'temp', rounds = 1, tag = 'base'): boolean {
     if (duration === 'perm') {
       target.vars[VAR.atkBonus] = (target.vars[VAR.atkBonus] ?? 0) - value;
+      this.emitFor(target, {
+        type: 'statusApply',
+        status: '攻击降低',
+        until: -1,
+        sourceId: this.self.id,
+        value: -value,
+      });
+      target.onStatusApply(this, '攻击降低', this.self.id);
       return true;
     }
     target.timedAtk[tag] = { value: -value, rounds, status: tag };
@@ -383,6 +400,14 @@ export class BattleCtx implements Ctx {
     if (target.noGainDefRound > 0) return false; // 防御获得封锁（增益方向受约束）
     if (duration === 'perm') {
       target.vars[VAR.defBonus] = (target.vars[VAR.defBonus] ?? 0) + value;
+      this.emitFor(target, {
+        type: 'statusApply',
+        status: '防御提升',
+        until: -1,
+        sourceId: this.self.id,
+        value,
+      });
+      target.onStatusApply(this, '防御提升', this.self.id);
       return true;
     }
     target.timedDef[tag] = { value, rounds, status: tag };
@@ -403,6 +428,14 @@ export class BattleCtx implements Ctx {
   defDown(target: Actor, value: number, duration: GainDuration = 'temp', rounds = 1, tag = 'base'): boolean {
     if (duration === 'perm') {
       target.vars[VAR.defBonus] = (target.vars[VAR.defBonus] ?? 0) - value;
+      this.emitFor(target, {
+        type: 'statusApply',
+        status: '防御降低',
+        until: -1,
+        sourceId: this.self.id,
+        value: -value,
+      });
+      target.onStatusApply(this, '防御降低', this.self.id);
       return true;
     }
     target.timedDef[tag] = { value: -value, rounds, status: tag };

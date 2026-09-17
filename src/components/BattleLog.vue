@@ -58,8 +58,12 @@ function describe(e: BattleEvent): string {
       return e.kind === 'trueDamage' ? `【${e.label}】真伤触发成功` : `被动技能【${e.label}】触发成功`;
     case 'death':
       return `★ ${nameOf(e.side)} 阵亡`;
-    case 'statusApply':
-      return `${nameOf(e.side ?? 'p1')} 获得【${e.status}】效果（由 ${nameById(e.sourceId)} 施加）`;
+    case 'statusApply': {
+      // 永久攻防变化带幅度（until = -1）；temp 状态无 value
+      const amount =
+        e.value !== undefined ? ` ${e.value > 0 ? '+' : ''}${e.value}` : ''
+      return `${nameOf(e.side ?? 'p1')} 获得【${e.status}】${amount}效果（由 ${nameById(e.sourceId)} 施加）`
+    };
     case 'statusExpire':
       return `${nameOf(e.side ?? 'p1')} 的${e.status}状态结束`;
     case 'shieldGain':
