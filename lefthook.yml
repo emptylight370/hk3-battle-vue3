@@ -2,7 +2,7 @@ pre-commit:
   jobs:
     - name: Format Code
       skip:
-        - prettier -c src test
+        - run: prettier -c src test
       run: pnpm run format
 # EXAMPLE USAGE:
 #
