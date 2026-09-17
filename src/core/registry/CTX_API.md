@@ -171,10 +171,74 @@ ctx.emit({ type: 'battleEnd', phase: 'roundEnd', ... });              // 骨架�
 ```
 
 - 省略的 `round / phase / side` 自动补当前值；`emitFor(actor, e)` 的 `side` 取该 actor 阵营。
-- **角色钩子该发什么**：只有私有事实——`proc`（触发成功）、`stacks`（刀势/花/灼光层数变化）、`passiveTrigger`（回合开始被动）。伤害/护盾/状态施加由协议和 `ctx` 辅助方法发，不要重复发。
-- **`proc` 只在触发成功时发**（"proc"即"触发"）：未命中的掷骰不发事件——事件流与官方日志逐行对应，未触发靠随机流序列在测试中推演。前置换骰（真伤类）在伤害前发，后置掷骰（攻击后被动）在伤害后发。
-- **`heal`/`stacks` 发 0 值事件是合法的**：满血时 `ctx.heal(n)` 仍会发 `heal(value: 0)`——渲染层需按需过滤，测试断言时留意。
 - 完整事件类型清单见 `../types.ts` 的 `BattleEvent`。
+
+### 6.1 需要注册表**显式 emit** 的事件（共 3 类）
+
+只有三类"协议拿不到的私有事实"需要钩子自己 emit。判断口诀：**这条日志的数字/名字，协议拿得到吗？拿不到才发。**
+
+#### ① `proc` —— 攻击结算中的概率触发标记
+
+```ts
+ctx.emit({ type: 'proc', kind: 'trueDamage', label: '掣电一斩' });  // 命中前掷骰
+ctx.emit({ type: 'proc', kind: 'passive', label: '自性纯一' });     // 命中后掷骰
+```
+
+- **何时发**：攻击动作/受击管线里掷骰命中了（真伤触发、攻击后被动触发）。
+- **`kind` 决定渲染位置**（对应官方日志两行式）：
+  - `kind: 'trueDamage'` → 命中**前**掷骰（先决定有没有真伤，再算伤）→ 渲染在 damage 行**之前**，对应日志"[掣电一斩] 真伤触发成功"；
+  - `kind: 'passive'` → 命中**后**掷骰（攻击后被动）→ 渲染在 damage 行**之后**，对应日志"被动技能【自性纯一】触发成功"。
+- **只在触发成功时发**（"proc"即"触发"）：未命中的掷骰不发事件——事件流与官方日志逐行对应，未触发靠随机流序列在测试中推演。
+- 触发产生的**后果不要在这里发**：随后的伤害走 `ctx.attack/segment`、状态走 `ctx.block`，它们各自自动发事件。
+
+#### ② `stacks` —— 层数类私有状态的变化
+
+```ts
+ctx.emitFor(ctx.self, { type: 'stacks', kind: 'stance', delta: 1, total: 1 });  // 刀势 +1
+ctx.emitFor(ctx.self, { type: 'stacks', kind: 'stance', delta: -2, total: 0 }); // 清零（delta 为负）
+```
+
+- **何时发**：`vars` 里的层数状态发生变化时（刀势、花、灼光）。
+- **字段**：`kind` 为层数键（开放字符串，注册表按版本定义）；`delta` 带符号（清零 = 负值/累计负值）；`total` 为变化后的总数。
+- **对应日志**："[自性纯一] 芽衣「刀势」+1（1层）"、"「刀势」清零"。
+- 数据本身留在 `vars`（私有），但**每次变化都要发**——否则无法对齐官方日志的层数行。
+
+#### ③ `passiveTrigger` —— 回合开始被动触发
+
+```ts
+ctx.emit({ type: 'passiveTrigger', label: '游云', detail: '敌方防御永久 −2' });
+```
+
+- **何时发**：`onRoundStart` 里时间倒转/游云这类**回合开始被动被触发**时。
+- **`detail`**：携带结果描述（游云三选一抽中了哪项）——渲染在 passiveTrigger 行内。
+- 触发产生的伤害/状态同样走后续 `ctx` API（它们自动发事件，且 phase 已是 roundStart）。
+- 与 `proc` 的区别：见 §6.2。
+
+### 6.2 `passiveTrigger` 与 `proc` 的区别（不要混用）
+
+| 维度 | `passiveTrigger` | `proc` |
+|---|---|---|
+| 阶段 | 仅回合开始（roundStart，节点①） | 仅行动阶段（actions，攻击管线内） |
+| 语义 | 回合开始被动**整个被触发**（大效果的开端） | 攻击结算中**某个概率分支命中**（一次掷骰） |
+| 位置语义 | 无"相对伤害行"概念 | `kind` 决定相对 damage 行的前/后 |
+| 来源钩子 | `onRoundStart` | `onHit / onDamaged / activeSkill` |
+
+### 6.3 协议自动发出（钩子**不要**重复发）
+
+| 事件 | 发出点 |
+|---|---|
+| `roundStart / battleStart / actionBlocked / death / battleEnd` | 引擎骨架 |
+| `attackStart / damage / dodge / counter* / revive` | 攻击协议（`ctx.attack` 管线） |
+| `statusApply` | `ctx.block / defDown / atkDown / applyMark` |
+| `statusExpire` | 结算段（`settleBlocks/settleVars/sweepMarks`）与 `ctx.clearDebuffs` |
+| `shieldGain` | `ctx.shieldGain` |
+| `heal` | `ctx.heal` |
+
+注：`counter` 反击伤害以 `damage(label: '幻象反击')` 呈现；护盾吸收量在 `damage.absorbed` 字段内，无独立事件。
+
+### 6.4 0 值事件是合法的
+
+满血时 `ctx.heal(n)` 仍会发 `heal(value: 0)`；同理层数不变时若发了 `stacks(delta: 0)` 也合法——渲染层按需过滤，测试断言时留意。
 
 ---
 

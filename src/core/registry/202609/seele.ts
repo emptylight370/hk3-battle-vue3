@@ -25,6 +25,7 @@ export const seele: CharacterDef = {
       ctx.emit({ type: 'proc', kind: 'passive', label: '落英旋舞' });
       ctx.attack({ kind: 'attack', base: ctx.self.curAtk + 6 * ctx.self.vars.flowers, label: '普攻' });
       ctx.heal(ctx.self.vars.flowers * 4);
+      ctx.emit({ type: 'stacks', kind: '花', delta: -ctx.self.vars.flowers, total: 0 });
       ctx.self.vars.flowers = 0;
     }
   },
@@ -35,9 +36,11 @@ export const seele: CharacterDef = {
       ctx.emit({ type: 'proc', kind: 'passive', label: '落英旋舞' });
       ctx.attack({ kind: 'attack', base: 15 + 6 * ctx.self.vars.flowers, label: '润愈之镰' });
       ctx.heal(ctx.self.vars.flowers * 4);
+      ctx.emit({ type: 'stacks', kind: '花', delta: -ctx.self.vars.flowers, total: 0 });
     } else {
       ctx.attack({ kind: 'attack', base: 15, label: '润愈之镰' });
     }
+    ctx.emit({ type: 'stacks', kind: '花', delta: 1, total: 1 });
     ctx.self.vars.flowers = 1;
   },
   // 被动技能
@@ -46,6 +49,7 @@ export const seele: CharacterDef = {
       ctx.emit({ type: 'proc', kind: 'passive', label: '落英旋舞' });
       if (ctx.self.vars.flowers && ctx.self.vars.flowers < 3) {
         ctx.self.vars.flowers++;
+        ctx.emit({ type: 'stacks', kind: '花', delta: 1, total: ctx.self.vars.flowers });
       }
     }
   },
@@ -55,6 +59,7 @@ export const seele: CharacterDef = {
       ctx.emit({ type: 'proc', kind: 'passive', label: '落英旋舞' });
       if (ctx.self.vars.flowers && ctx.self.vars.flowers < 3) {
         ctx.self.vars.flowers++;
+        ctx.emit({ type: 'stacks', kind: '花', delta: 1, total: ctx.self.vars.flowers });
       }
     }
   },

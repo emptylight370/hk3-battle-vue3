@@ -27,6 +27,7 @@ export const vita: CharacterDef = {
     ctx.defUp(ctx.self, 3, 'temp');
     ctx.attack({ kind: 'attack', base: ctx.self.curAtk, label: '蔽羽遮天' });
     ctx.self.vars.super = 1; // 变身标记
+    ctx.emit({ type: 'stacks', kind: '变身', delta: 1, total: 1 });
   },
   // 被动技能
   onDamaged(ctx, _) {
@@ -38,6 +39,7 @@ export const vita: CharacterDef = {
   onSettle(ctx) {
     if (ctx.self.vars.super && ctx.self.vars.super > 0) {
       ctx.self.vars.super = 0;
+      ctx.emit({ type: 'stacks', kind: '变身', delta: -1, total: 0 });
       ctx.block(ctx.self, '变身结束', 1, 'action');
     }
   },

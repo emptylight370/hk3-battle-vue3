@@ -16,9 +16,6 @@ export const xinadia: CharacterDef = {
   def: 7,
   speed: 25,
   activeInterval: 3,
-  vars: {
-    atkBonus: 0,
-  },
   // 被动技能
   normalAttack(ctx) {
     if (ctx.rng.chance(0.2)) {
