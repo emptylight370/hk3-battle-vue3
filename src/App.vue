@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import BatchPanel from '@/components/BatchPanel.vue'
-import BattleLog from '@/components/BattleLog.vue'
+import BatchPanel from '@/components/BatchPanel.vue';
+import BattleLog from '@/components/BattleLog.vue';
+import OddsCalc from './components/OddsCalc.vue';
 </script>
 
 <template>
@@ -15,6 +16,9 @@ import BattleLog from '@/components/BattleLog.vue'
         </el-col>
         <el-col :xs="24" :md="14">
           <BattleLog />
+        </el-col>
+        <el-col>
+          <OddsCalc />
         </el-col>
       </el-row>
     </el-main>

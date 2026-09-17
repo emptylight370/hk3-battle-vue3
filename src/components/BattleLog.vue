@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 import type { BattleEvent } from '@/core/types';
 import { useBattleStore } from '@/stores/battle';
 
@@ -12,6 +12,8 @@ import { useBattleStore } from '@/stores/battle';
 // ============================================================
 
 const store = useBattleStore();
+
+const open = ref(true);
 
 /** side → 角色名（经 store 的表单选择解析） */
 function nameOf(side: Side): string {
@@ -60,10 +62,9 @@ function describe(e: BattleEvent): string {
       return `★ ${nameOf(e.side)} 阵亡`;
     case 'statusApply': {
       // 永久攻防变化带幅度（until = -1）；temp 状态无 value
-      const amount =
-        e.value !== undefined ? ` ${e.value > 0 ? '+' : ''}${e.value}` : ''
-      return `${nameOf(e.side ?? 'p1')} 获得【${e.status}】${amount}效果（由 ${nameById(e.sourceId)} 施加）`
-    };
+      const amount = e.value !== undefined ? ` ${e.value > 0 ? '+' : ''}${e.value}` : '';
+      return `${nameOf(e.side ?? 'p1')} 获得【${e.status}】${amount}效果（由 ${nameById(e.sourceId)} 施加）`;
+    }
     case 'statusExpire':
       return `${nameOf(e.side ?? 'p1')} 的${e.status}状态结束`;
     case 'shieldGain':
@@ -124,25 +125,31 @@ type Side = 'p1' | 'p2';
 
 <template>
   <el-card shadow="never">
-    <template #header
-      >单场时间轴<span v-if="!store.result?.firstEvents" class="empty">（开启"首场日志"后展示）</span></template
-    >
-
-    <template v-if="store.result?.firstEvents?.length">
-      <p class="opening">{{ opening }}</p>
-      <el-collapse>
-        <el-collapse-item v-for="g in groups" :key="g.round" :title="`—— 第 ${g.round} 回合 ——`">
-          <p v-for="(l, i) in g.lines" :key="i" class="line">
-            <el-tag :type="PHASE_TAG[l.phase]?.type ?? 'info'" size="small" class="tag">
-              {{ PHASE_TAG[l.phase]?.label ?? l.phase }}
-            </el-tag>
-            {{ l.text }}
-          </p>
-        </el-collapse-item>
-      </el-collapse>
-      <p class="ending">{{ ending }}</p>
+    <template #header>
+      <div class="card-header" @click="open = !open">
+        <span>单场时间轴<span v-if="!store.result?.firstEvents" class="empty">（开启"首场日志"后展示）</span></span>
+        <span class="arrow" :class="{ open }">▾</span>
+      </div>
     </template>
-    <el-empty v-else description="尚无对局结果" :image-size="60" />
+    <el-collapse-transition>
+      <div v-show="open">
+        <template v-if="store.result?.firstEvents?.length">
+          <p class="opening">{{ opening }}</p>
+          <el-collapse>
+            <el-collapse-item v-for="g in groups" :key="g.round" :title="`—— 第 ${g.round} 回合 ——`">
+              <p v-for="(l, i) in g.lines" :key="i" class="line">
+                <el-tag :type="PHASE_TAG[l.phase]?.type ?? 'info'" size="small" class="tag">
+                  {{ PHASE_TAG[l.phase]?.label ?? l.phase }}
+                </el-tag>
+                {{ l.text }}
+              </p>
+            </el-collapse-item>
+          </el-collapse>
+          <p class="ending">{{ ending }}</p>
+        </template>
+        <el-empty v-else description="尚无对局结果" :image-size="60" />
+      </div>
+    </el-collapse-transition>
   </el-card>
 </template>
 
@@ -167,5 +174,18 @@ type Side = 'p1' | 'p2';
   color: var(--el-text-color-secondary);
   font-size: 12px;
   font-weight: normal;
+}
+.card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  cursor: pointer;
+  user-select: none;
+}
+.arrow {
+  transition: transform 0.3s;
+}
+.arrow.open {
+  transform: rotate(180deg);
 }
 </style>
