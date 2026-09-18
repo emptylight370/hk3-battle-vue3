@@ -1,2 +1,3 @@
 src/auto-imports.d.ts
 src/components.d.ts
+test/__baselines__/regression.json
