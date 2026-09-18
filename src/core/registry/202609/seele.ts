@@ -25,8 +25,10 @@ export const seele: CharacterDef = {
       ctx.emit({ type: 'proc', kind: 'passive', label: '落英旋舞' });
       ctx.attack({ kind: 'attack', base: ctx.self.curAtk + 6 * ctx.self.vars.flowers, label: '普攻' });
       ctx.heal(ctx.self.vars.flowers * 4);
-      ctx.emit({ type: 'stacks', kind: '花', delta: -ctx.self.vars.flowers, total: 0 });
+      ctx.emitFor(ctx.self, { type: 'stacks', kind: '花', delta: -ctx.self.vars.flowers, total: 0 });
       ctx.self.vars.flowers = 0;
+    } else {
+      ctx.attack({ kind: 'attack', base: ctx.self.curAtk, label: '普攻' });
     }
   },
   // 主动技能
@@ -40,16 +42,16 @@ export const seele: CharacterDef = {
     } else {
       ctx.attack({ kind: 'attack', base: 15, label: '润愈之镰' });
     }
-    ctx.emit({ type: 'stacks', kind: '花', delta: 1, total: 1 });
+    ctx.emitFor(ctx.self, { type: 'stacks', kind: '花', delta: 1, total: 1 });
     ctx.self.vars.flowers = 1;
   },
   // 被动技能
   onDamaged(ctx, _) {
     if (ctx.rng.chance(0.35)) {
       ctx.emit({ type: 'proc', kind: 'passive', label: '落英旋舞' });
-      if (ctx.self.vars.flowers && ctx.self.vars.flowers < 3) {
-        ctx.self.vars.flowers++;
-        ctx.emit({ type: 'stacks', kind: '花', delta: 1, total: ctx.self.vars.flowers });
+      if (ctx.target.vars.flowers && ctx.target.vars.flowers < 3) {
+        ctx.target.vars.flowers++;
+        ctx.emitFor(ctx.target, { type: 'stacks', kind: '花', delta: 1, total: ctx.target.vars.flowers });
       }
     }
   },
@@ -57,9 +59,9 @@ export const seele: CharacterDef = {
   onStatusApply(ctx, _status, _sourceId) {
     if (ctx.rng.chance(0.3)) {
       ctx.emit({ type: 'proc', kind: 'passive', label: '落英旋舞' });
-      if (ctx.self.vars.flowers && ctx.self.vars.flowers < 3) {
-        ctx.self.vars.flowers++;
-        ctx.emit({ type: 'stacks', kind: '花', delta: 1, total: ctx.self.vars.flowers });
+      if (ctx.target.vars.flowers && ctx.target.vars.flowers < 3) {
+        ctx.target.vars.flowers++;
+        ctx.emit({ type: 'stacks', kind: '花', delta: 1, total: ctx.target.vars.flowers });
       }
     }
   },
