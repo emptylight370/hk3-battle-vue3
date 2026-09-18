@@ -4,6 +4,7 @@ pre-commit:
       skip:
         - run: prettier -c src test
       run: pnpm run format
+      stage_fixed: true
 # EXAMPLE USAGE:
 #
 #   Refer for explanation to following link:
