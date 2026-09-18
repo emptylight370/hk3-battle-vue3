@@ -19,17 +19,17 @@ export const youlandaier: CharacterDef = {
   // 被动技能
   normalAttack(ctx) {
     ctx.attack({ kind: 'attack', base: ctx.self.curAtk, label: '普攻' });
-    ctx.emit({ type: 'proc', kind: 'passive', label: '小身躯，大潜力' });
+    ctx.emitFor(ctx.self, { type: 'proc', kind: 'passive', label: '小身躯，大潜力' });
     ctx.shieldGain(3);
   },
   // 主动技能
   activeSkill(ctx) {
     ctx.attack({ kind: 'attack', base: 15, label: '特殊的滑板技巧' });
-    ctx.emit({ type: 'proc', kind: 'passive', label: '小身躯，大潜力' });
+    ctx.emitFor(ctx.self, { type: 'proc', kind: 'passive', label: '小身躯，大潜力' });
     ctx.shieldGain(3);
     if (ctx.rng.chance(0.2)) {
       ctx.attack({ kind: 'attack', base: 25, label: '特殊的滑板技巧' });
-      ctx.emit({ type: 'proc', kind: 'passive', label: '小身躯，大潜力' });
+      ctx.emitFor(ctx.self, { type: 'proc', kind: 'passive', label: '小身躯，大潜力' });
       ctx.shieldGain(3);
     }
   },

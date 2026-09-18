@@ -20,7 +20,7 @@ export const kelali: CharacterDef = {
   normalAttack(ctx) {
     ctx.attack({ kind: 'attack', base: ctx.self.curAtk, label: '普攻' });
     if (ctx.rng.chance(0.25)) {
-      ctx.emit({ type: 'proc', kind: 'passive', label: '来，睡个好觉' });
+      ctx.emitFor(ctx.self, { type: 'proc', kind: 'passive', label: '来，睡个好觉' });
       ctx.block(ctx.target, '眩晕', 2, 'action');
     }
   },
@@ -28,19 +28,19 @@ export const kelali: CharacterDef = {
   activeSkill(ctx) {
     const atk1 = ctx.attack({ kind: 'attack', base: 25, label: '别怕，只是打个哈欠' });
     if (ctx.rng.chance(0.25)) {
-      ctx.emit({ type: 'proc', kind: 'passive', label: '来，睡个好觉' });
+      ctx.emitFor(ctx.self, { type: 'proc', kind: 'passive', label: '来，睡个好觉' });
       ctx.block(ctx.target, '眩晕', 2, 'action');
     }
     if (!atk1.missed && !atk1.killed) {
       const atk2 = ctx.attack({ kind: 'attack', base: 15, label: '别怕，只是打个哈欠' });
       if (ctx.rng.chance(0.25)) {
-        ctx.emit({ type: 'proc', kind: 'passive', label: '来，睡个好觉' });
+        ctx.emitFor(ctx.self, { type: 'proc', kind: 'passive', label: '来，睡个好觉' });
         ctx.block(ctx.target, '眩晕', 2, 'action');
       }
       if (!atk2.missed && !atk2.killed) {
         ctx.attack({ kind: 'attack', base: 15, label: '别怕，只是打个哈欠' });
         if (ctx.rng.chance(0.25)) {
-          ctx.emit({ type: 'proc', kind: 'passive', label: '来，睡个好觉' });
+          ctx.emitFor(ctx.self, { type: 'proc', kind: 'passive', label: '来，睡个好觉' });
           ctx.block(ctx.target, '眩晕', 2, 'action');
         }
       }

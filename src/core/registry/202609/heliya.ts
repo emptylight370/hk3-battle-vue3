@@ -22,11 +22,11 @@ export const heliya: CharacterDef = {
   // 被动技能
   normalAttack(ctx) {
     if (ctx.self.vars.light && ctx.self.vars.light >= 3) {
-      ctx.emit({ type: 'proc', kind: 'passive', label: '坚守道途' });
+      ctx.emitFor(ctx.self, { type: 'proc', kind: 'passive', label: '坚守道途' });
       ctx.attack({ kind: 'attack', base: ctx.self.curAtk * 1.5, label: '普攻' });
-      ctx.emit({ type: 'stacks', kind: '灼光', delta: -ctx.self.vars.light, total: 0 });
-      ctx.emit({ type: 'proc', kind: 'passive', label: '坚守道途' });
-      ctx.emit({ type: 'stacks', kind: '灼光', delta: 1, total: ctx.self.vars.light });
+      ctx.emitFor(ctx.self, { type: 'stacks', kind: '灼光', delta: -ctx.self.vars.light, total: 0 });
+      ctx.emitFor(ctx.self, { type: 'proc', kind: 'passive', label: '坚守道途' });
+      ctx.emitFor(ctx.self, { type: 'stacks', kind: '灼光', delta: 1, total: ctx.self.vars.light });
       ctx.self.vars.light = 1;
     }
   },
@@ -36,10 +36,10 @@ export const heliya: CharacterDef = {
     if (ctx.rng.chance(0.25)) {
       ctx.block(ctx.target, '麻痹', 1, 'action');
     }
-    ctx.emit({ type: 'proc', kind: 'passive', label: '坚守道途' });
+    ctx.emitFor(ctx.self, { type: 'proc', kind: 'passive', label: '坚守道途' });
     if (ctx.self.vars.light) {
       ctx.self.vars.light++;
-      ctx.emit({ type: 'stacks', kind: '灼光', delta: 1, total: ctx.self.vars.light });
+      ctx.emitFor(ctx.self, { type: 'stacks', kind: '灼光', delta: 1, total: ctx.self.vars.light });
     }
   },
 };

@@ -9,11 +9,17 @@ import { computed, ref } from 'vue';
 // 结构化事件（core/types）→ 官方日志式文案。分组：
 // - round 0 的 battleStart 单独一行（含先手信息）
 // - 其余按回合折叠（el-collapse），行内带 phase 标签
+//
+// 缺省归属回填：side 缺省的事件（手写遗漏的 proc 等）回填
+// "最近一条带 side 事件的角色"；游标是遍历局部变量，每局从
+// battleStart.first 重新开始，无跨对局残留。
 // ============================================================
 
 const store = useBattleStore();
 
 const open = ref(true);
+
+type Side = 'p1' | 'p2';
 
 /** side → 角色名（经 store 的表单选择解析） */
 function nameOf(side: Side): string {
@@ -27,56 +33,75 @@ function other(side: Side): Side {
   return side === 'p1' ? 'p2' : 'p1';
 }
 
+/** 本局先手方（游标初始值）；无 battleStart 时兜底 p1 */
+function firstSide(): Side {
+  const bs = store.result?.firstEvents?.find((x) => x.type === 'battleStart');
+  return bs?.type === 'battleStart' ? bs.first : 'p1';
+}
+
 const BLOCK_REASON: Record<string, string> = {
   stun: '眩晕',
   paralysis: '麻痹',
   transform: '变身封锁',
 };
 
-/** 事件 → 日志文案（措辞对齐官方日志） */
-function describe(e: BattleEvent): string {
+/** 遍历游标：普通对象（非响应式），describe 只读写 cur.side，无副作用泄漏 */
+interface Cursor {
+  side: Side;
+}
+
+/** 事件 → 日志文案（措辞对齐官方日志）；带 side 的事件更新游标 */
+function describe(e: BattleEvent, cur: Cursor): string {
+  if (e.side) cur.side = e.side;
   switch (e.type) {
     case 'battleStart':
       return `战斗开始，${nameOf('p1')} 对战 ${nameOf('p2')}，${nameOf(e.first)} 先手`;
     case 'passiveTrigger':
-      return `被动【${e.label}】触发${e.detail ? `：${e.detail}` : ''}`;
+      return `${nameOf(e.side ?? cur.side)} 被动【${e.label}】触发${e.detail ? `：${e.detail}` : ''}`;
     case 'action':
-      return e.isNormal ? '' : `${nameOf(e.side ?? 'p1')} 使用主动技能【${e.skill}】`;
+      return e.isNormal ? '' : `${nameOf(e.side ?? cur.side)} 使用主动技能【${e.skill}】`;
     case 'actionBlocked':
-      return `${nameOf(e.side ?? 'p1')} 处于${BLOCK_REASON[e.reason] ?? e.reason}状态，无法行动`;
+      return `${nameOf(e.side ?? cur.side)} 处于${BLOCK_REASON[e.reason] ?? e.reason}状态，无法行动`;
     case 'dodge':
-      return `【${e.label}】被 ${nameOf(e.side ?? 'p1')} 闪避`;
+      return `【${e.label}】被 ${nameOf(e.side ?? cur.side)} 闪避`;
     case 'damage': {
-      // side = 受击方；攻击方为其对面
-      const atk = nameOf(other(e.side ?? 'p2'));
-      const def = nameOf(e.side ?? 'p2');
-      let text = `【${e.label}】${atk} 对 ${def} 造成 ${e.dealt} 点伤害`;
+      // side = 受击方；攻击方为其对面。协议保证 damage 总带 side（emitFor），
+      // 缺省回填是防御性兜底：假设缺省段打的是"最近行动方的对面"
+      const defSide = e.side ?? other(cur.side);
+      const atkSide = other(defSide);
+      let text = `【${e.label}】${nameOf(atkSide)} 对 ${nameOf(defSide)} 造成 ${e.dealt} 点伤害`;
       if (e.trueDamage) text += `（含${e.trueDamage}点真实伤害）`;
       if (e.absorbed) text += `（护盾吸收${e.absorbed}）`;
       if (e.hits) text += `（${e.hits}段）`;
       return text;
     }
     case 'proc':
-      return e.kind === 'trueDamage' ? `【${e.label}】真伤触发成功` : `被动技能【${e.label}】触发成功`;
+      return e.kind === 'trueDamage'
+        ? `${nameOf(e.side ?? cur.side)}【${e.label}】真伤触发成功`
+        : `${nameOf(e.side ?? cur.side)} 被动技能【${e.label}】触发成功`;
     case 'death':
       return `★ ${nameOf(e.side)} 阵亡`;
     case 'statusApply': {
       // 永久攻防变化带幅度（until = -1）；temp 状态无 value
       const amount = e.value !== undefined ? ` ${e.value > 0 ? '+' : ''}${e.value}` : '';
-      return `${nameOf(e.side ?? 'p1')} 获得【${e.status}】${amount}效果（由 ${nameById(e.sourceId)} 施加）`;
+      return `${nameOf(e.side ?? cur.side)} 获得【${e.status}】${amount}效果（由 ${nameById(e.sourceId)} 施加）`;
     }
     case 'statusExpire':
-      return `${nameOf(e.side ?? 'p1')} 的${e.status}状态结束`;
+      return `${nameOf(e.side ?? cur.side)} 的${e.status}状态结束`;
     case 'shieldGain':
-      return `${nameOf(e.side ?? 'p1')} 获得 ${e.value} 点护盾`;
+      return `${nameOf(e.side ?? cur.side)} 获得 ${e.value} 点护盾`;
     case 'heal':
-      return `${nameOf(e.side ?? 'p1')} 回复 ${e.value} 点生命`;
+      return `${nameOf(e.side ?? cur.side)} 回复 ${e.value} 点生命`;
     case 'stacks': {
-      const who = nameOf(e.side ?? 'p1');
-      return e.delta < 0 ? `${who} 的${e.kind}清零` : `${who} ${e.kind}+${e.delta}（${e.total}层）`;
+      const who = nameOf(e.side ?? cur.side);
+      // 清零 = total 归零；其余负增量是部分衰减（如分裂屏障逐层 −1），显示剩余层数
+      if (e.delta < 0) {
+        return e.total === 0 ? `${who} 的${e.kind}清零` : `${who} ${e.kind}-${-e.delta}（剩余${e.total}层）`;
+      }
+      return `${who} ${e.kind}+${e.delta}（${e.total}层）`;
     }
     case 'revive':
-      return `${nameOf(e.side ?? 'p1')} 复活（血量 ${e.hp}）`;
+      return `${nameOf(e.side ?? cur.side)} 复活（血量 ${e.hp}）`;
     case 'battleEnd':
       return e.outcome === 'draw' ? '战斗结束：平局' : `${nameOf(e.outcome)} 获得了胜利`;
     default:
@@ -99,10 +124,11 @@ interface RoundGroup {
 /** 事件流 → 分组行（battleStart 摘出，其余按回合聚合；空文案行丢弃） */
 const groups = computed<RoundGroup[]>(() => {
   const events = store.result?.firstEvents ?? [];
+  const cur: Cursor = { side: firstSide() }; // 每局重算时游标重置为先手方，无跨对局残留
   const byRound = new Map<number, RoundGroup>();
   for (const e of events) {
     if (e.type === 'battleStart' || e.type === 'battleEnd') continue;
-    const text = describe(e);
+    const text = describe(e, cur);
     if (!text) continue; // 普攻无独立宣告行等空文案
     let g = byRound.get(e.round);
     if (!g) byRound.set(e.round, (g = { round: e.round, lines: [] }));
@@ -113,14 +139,13 @@ const groups = computed<RoundGroup[]>(() => {
 
 const opening = computed(() => {
   const e = store.result?.firstEvents?.find((x) => x.type === 'battleStart');
-  return e ? describe(e) : '';
+  // battleStart 无 side、文案不含游标，使用独立游标即可
+  return e ? describe(e, { side: 'p1' }) : '';
 });
 const ending = computed(() => {
   const e = store.result?.firstEvents?.find((x) => x.type === 'battleEnd');
-  return e ? describe(e) : '';
+  return e ? describe(e, { side: firstSide() }) : '';
 });
-
-type Side = 'p1' | 'p2';
 </script>
 
 <template>

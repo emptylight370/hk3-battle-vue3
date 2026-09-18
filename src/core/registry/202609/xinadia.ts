@@ -20,7 +20,7 @@ export const xinadia: CharacterDef = {
   normalAttack(ctx) {
     if (ctx.rng.chance(0.2)) {
       // 发送消息提示被动触发
-      ctx.emit({ type: 'proc', kind: 'passive', label: '影中曙光' });
+      ctx.emitFor(ctx.self, { type: 'proc', kind: 'passive', label: '影中曙光' });
       ctx.attack({ kind: 'attack', base: ctx.self.curAtk + 10, label: '普攻' });
       ctx.atkUp(ctx.self, 1, 'perm');
     } else {
@@ -31,7 +31,7 @@ export const xinadia: CharacterDef = {
   activeSkill(ctx) {
     for (let i = 0; i < 3; i++) {
       if (ctx.rng.chance(0.2)) {
-        ctx.emit({ type: 'proc', kind: 'passive', label: '魔法陨石' });
+        ctx.emitFor(ctx.self, { type: 'proc', kind: 'passive', label: '魔法陨石' });
         ctx.attack({ kind: 'attack', base: ctx.self.curAtk + 10, label: '梦中的流星雨' });
         ctx.atkUp(ctx.self, 1, 'perm');
       } else {

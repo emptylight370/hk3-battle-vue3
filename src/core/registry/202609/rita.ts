@@ -24,8 +24,8 @@ export const rita: CharacterDef = {
   // 被动技能
   beforeHit(ctx, _) {
     if (ctx.rng.chance(0.25)) {
-      ctx.emit({ type: 'proc', kind: 'passive', label: '谍影重重' });
-      ctx.attack({ kind: 'attack', base: 20, label: '谍影重重' }, ctx.self); // 反击攻击方（受击钩子中 ctx.self = 攻击方）
+      ctx.emitFor(ctx.target, { type: 'proc', kind: 'passive', label: '谍影重重' });
+      ctx.attack({ kind: 'attack', base: 20, label: '谍影重重' }, ctx.self);
       return false;
     } else {
       return true;

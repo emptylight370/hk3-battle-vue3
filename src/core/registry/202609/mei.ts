@@ -24,35 +24,37 @@ export const mei: CharacterDef = {
   // 主动技能
   activeSkill(ctx) {
     if (ctx.self.vars.blade && ctx.self.vars.blade >= 2) {
-      const result = ctx.attack({ kind: 'attack', base: 25, label: '掣电一斩' });
-      ctx.emit({ type: 'stacks', kind: '刀势', delta: -ctx.self.vars.blade, total: 0 });
+      // 强化：官方日志"刀势清零"在强化攻击之前打出——先消耗，再攻击，
+      // 命中后的被动【自性纯一】加层得以保留（强化后刀势由运气决定）
+      ctx.emitFor(ctx.self, { type: 'stacks', kind: '刀势', delta: -ctx.self.vars.blade, total: 0 });
       ctx.self.vars.blade = 0;
+      const result = ctx.attack({ kind: 'attack', base: 25, label: '掣电一斩' });
       if (!result.missed && !result.killed) {
-        ctx.emit({ type: 'proc', kind: 'trueDamage', label: '掣电一斩' });
+        ctx.emitFor(ctx.self, { type: 'proc', kind: 'trueDamage', label: '掣电一斩' });
         ctx.attack({ kind: 'pierce', base: ctx.self.maxHp * 0.08, label: '掣电一斩' });
       }
     } else {
       if (ctx.rng.chance(0.05)) {
-        ctx.emit({ type: 'proc', kind: 'trueDamage', label: '掣电一斩' });
+        ctx.emitFor(ctx.self, { type: 'proc', kind: 'trueDamage', label: '掣电一斩' });
         ctx.attack({ kind: 'pierce', base: ctx.self.maxHp * 0.04, label: '掣电一斩' });
       }
       ctx.attack({ kind: 'attack', base: 15, label: '掣电一斩' });
     }
   },
   // 被动技能
-  onHit(ctx, _) {
+  onHit(ctx) {
+    ctx.emitFor(ctx.self, { type: 'proc', kind: 'passive', label: '自性纯一' });
+    const cur = ctx.self.vars.blade ?? 0;
     if (ctx.rng.chance(0.4)) {
-      ctx.emit({ type: 'proc', kind: 'passive', label: '自性纯一' });
-      if (ctx.self.vars.blade && ctx.self.vars.blade < 2) {
-        ctx.self.vars.blade++;
-        ctx.emit({ type: 'stacks', kind: '刀势', delta: 1, total: ctx.self.vars.blade });
-      } else if (ctx.self.vars.blade && ctx.self.vars.blade >= 2) {
-        ctx.emit({ type: 'stacks', kind: '刀势', delta: 1, total: 2 });
+      if (cur < 2) {
+        // 40%：+1 层（0 层也生效；已满 2 层则上限截断，不发增加事件）
+        ctx.self.vars.blade = cur + 1;
+        ctx.emitFor(ctx.self, { type: 'stacks', kind: '刀势', delta: 1, total: cur + 1 });
       }
-    } else {
-      ctx.emit({ type: 'proc', kind: 'passive', label: '自性纯一' });
+    } else if (cur < 2) {
+      // 60%：升至 2 层，delta 为实际差值（官方日志"刀势+N（N层）"中 N = 实际增量）
       ctx.self.vars.blade = 2;
-      ctx.emit({ type: 'stacks', kind: '刀势', delta: 2, total: 2 });
+      ctx.emitFor(ctx.self, { type: 'stacks', kind: '刀势', delta: 2 - cur, total: 2 });
     }
   },
 };

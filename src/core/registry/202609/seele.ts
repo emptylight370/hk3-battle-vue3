@@ -22,7 +22,7 @@ export const seele: CharacterDef = {
   // 被动技能
   normalAttack(ctx) {
     if (ctx.self.vars.flowers && ctx.self.vars.flowers > 0) {
-      ctx.emit({ type: 'proc', kind: 'passive', label: '落英旋舞' });
+      ctx.emitFor(ctx.self, { type: 'proc', kind: 'passive', label: '落英旋舞' });
       ctx.attack({ kind: 'attack', base: ctx.self.curAtk + 6 * ctx.self.vars.flowers, label: '普攻' });
       ctx.heal(ctx.self.vars.flowers * 4);
       ctx.emitFor(ctx.self, { type: 'stacks', kind: '花', delta: -ctx.self.vars.flowers, total: 0 });
@@ -35,10 +35,10 @@ export const seele: CharacterDef = {
   activeSkill(ctx) {
     ctx.clearDebuffs();
     if (ctx.self.vars.flowers && ctx.self.vars.flowers > 0) {
-      ctx.emit({ type: 'proc', kind: 'passive', label: '落英旋舞' });
+      ctx.emitFor(ctx.self, { type: 'proc', kind: 'passive', label: '落英旋舞' });
       ctx.attack({ kind: 'attack', base: 15 + 6 * ctx.self.vars.flowers, label: '润愈之镰' });
       ctx.heal(ctx.self.vars.flowers * 4);
-      ctx.emit({ type: 'stacks', kind: '花', delta: -ctx.self.vars.flowers, total: 0 });
+      ctx.emitFor(ctx.self, { type: 'stacks', kind: '花', delta: -ctx.self.vars.flowers, total: 0 });
     } else {
       ctx.attack({ kind: 'attack', base: 15, label: '润愈之镰' });
     }
@@ -48,7 +48,7 @@ export const seele: CharacterDef = {
   // 被动技能
   onDamaged(ctx, _) {
     if (ctx.rng.chance(0.35)) {
-      ctx.emit({ type: 'proc', kind: 'passive', label: '落英旋舞' });
+      ctx.emitFor(ctx.target, { type: 'proc', kind: 'passive', label: '落英旋舞' });
       if (ctx.target.vars.flowers && ctx.target.vars.flowers < 3) {
         ctx.target.vars.flowers++;
         ctx.emitFor(ctx.target, { type: 'stacks', kind: '花', delta: 1, total: ctx.target.vars.flowers });
@@ -58,10 +58,10 @@ export const seele: CharacterDef = {
   // 被动技能
   onStatusApply(ctx, _status, _sourceId) {
     if (ctx.rng.chance(0.3)) {
-      ctx.emit({ type: 'proc', kind: 'passive', label: '落英旋舞' });
+      ctx.emitFor(ctx.target, { type: 'proc', kind: 'passive', label: '落英旋舞' });
       if (ctx.target.vars.flowers && ctx.target.vars.flowers < 3) {
         ctx.target.vars.flowers++;
-        ctx.emit({ type: 'stacks', kind: '花', delta: 1, total: ctx.target.vars.flowers });
+        ctx.emitFor(ctx.target, { type: 'stacks', kind: '花', delta: 1, total: ctx.target.vars.flowers });
       }
     }
   },

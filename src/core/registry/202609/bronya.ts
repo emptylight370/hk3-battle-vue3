@@ -24,7 +24,7 @@ export const bronya: CharacterDef = {
   // 被动技能
   normalAttack(ctx) {
     if (ctx.opponentMark('标记')) {
-      ctx.emit({ type: 'proc', kind: 'passive', label: '力场，解构！' });
+      ctx.emitFor(ctx.self, { type: 'proc', kind: 'passive', label: '力场，解构！' });
       ctx.attack({ kind: 'attack', base: ctx.self.curAtk, label: '普攻' });
       ctx.attack({ kind: 'attack', base: ctx.self.curAtk, label: '普攻' });
     } else {
@@ -34,7 +34,7 @@ export const bronya: CharacterDef = {
   // 主动技能
   activeSkill(ctx) {
     ctx.self.vars.shieldExpand = 2;
-    ctx.emit({ type: 'proc', kind: 'passive', label: '分裂屏障' });
+    ctx.emitFor(ctx.self, { type: 'proc', kind: 'passive', label: '分裂屏障' });
     ctx.shieldGain(ctx.rng.int(4, 10));
     ctx.applyMark('标记', 2, 1);
     ctx.self.normalAttack(ctx);
@@ -43,7 +43,7 @@ export const bronya: CharacterDef = {
   onSettle(ctx) {
     if (ctx.self.vars.shieldExpand && ctx.self.vars.shieldExpand > 0) {
       ctx.self.vars.shieldExpand--;
-      ctx.emit({ type: 'stacks', kind: '分裂屏障', delta: -1, total: ctx.self.vars.shieldExpand });
+      ctx.emitFor(ctx.self, { type: 'stacks', kind: '分裂屏障', delta: -1, total: ctx.self.vars.shieldExpand });
     }
   },
 };

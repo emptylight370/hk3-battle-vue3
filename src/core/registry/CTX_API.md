@@ -175,26 +175,28 @@ ctx.clearDebuffs(); // 清零计数 + 清除负向限时变化 + 删除敌方标
 
 ---
 
-## 6. 事件 —— `emit / emitFor`
+## 6. 事件 —— `emitFor`（唯一的事件发送方法）
 
 ```ts
-ctx.emit({ type: 'proc', kind: 'passive', label: '自性纯一' });       // 自动补 round/phase
-ctx.emitFor(ctx.self, { type: 'stacks', kind: 'stance', delta: 1, total: 1 }); // 再补 side
-ctx.emit({ type: 'battleEnd', phase: 'roundEnd', ... });              // 骨架事件可显式覆盖
+ctx.emitFor(ctx.self, { type: 'proc', kind: 'passive', label: '自性纯一' }); // side = 自己
+ctx.emitFor(ctx.self, { type: 'stacks', kind: 'stance', delta: 1, total: 1 }); // 刀势 +1 归自己
+ctx.emitFor(ctx.target, { type: 'stacks', kind: 'ember', delta: 1, total: 1 }); // 灼光累积归对手
 ```
 
-- 省略的 `round / phase / side` 自动补当前值；`emitFor(actor, e)` 的 `side` 取该 actor 阵营。
+- **角色钩子一律用 `emitFor`**：`side` 取第一个参数的阵营，省略的 `round / phase` 自动补当前值。
+- **不要用裸 `emit`**：它不补 `side`，归属敏感事件（stacks/heal/shieldGain 等）在界面上会回退显示成 p1——当角色是 p2 时看起来就是"登记到对手身上"。裸 `emit` 仅限引擎骨架内部使用（`roundStart`/`battleEnd` 等无归属事件），不属于角色 API。
+- 归属速查：加给自己 = `emitFor(ctx.self, ...)`；加给对手 = `emitFor(ctx.target, ...)`；受击方钩子（onDamaged/onLethal）中自己 = `ctx.target`、攻击方 = `ctx.self`。
 - 完整事件类型清单见 `../types.ts` 的 `BattleEvent`。
 
-### 6.1 需要注册表**显式 emit** 的事件（共 3 类）
+### 6.1 需要注册表**显式 emitFor** 的事件（共 3 类）
 
-只有三类"协议拿不到的私有事实"需要钩子自己 emit。判断口诀：**这条日志的数字/名字，协议拿得到吗？拿不到才发。**
+只有三类"协议拿不到的私有事实"需要钩子自己发。判断口诀：**这条日志的数字/名字，协议拿得到吗？拿不到才发。**
 
 #### ① `proc` —— 攻击结算中的概率触发标记
 
 ```ts
-ctx.emit({ type: 'proc', kind: 'trueDamage', label: '掣电一斩' }); // 命中前掷骰
-ctx.emit({ type: 'proc', kind: 'passive', label: '自性纯一' }); // 命中后掷骰
+ctx.emitFor(ctx.self, { type: 'proc', kind: 'trueDamage', label: '掣电一斩' }); // 命中前掷骰
+ctx.emitFor(ctx.self, { type: 'proc', kind: 'passive', label: '自性纯一' }); // 命中后掷骰
 ```
 
 - **何时发**：攻击动作/受击管线里掷骰命中了（真伤触发、攻击后被动触发）。
@@ -219,7 +221,7 @@ ctx.emitFor(ctx.self, { type: 'stacks', kind: 'stance', delta: -2, total: 0 }); 
 #### ③ `passiveTrigger` —— 回合开始被动触发
 
 ```ts
-ctx.emit({ type: 'passiveTrigger', label: '游云', detail: '敌方防御永久 −2' });
+ctx.emitFor(ctx.self, { type: 'passiveTrigger', label: '游云', detail: '敌方防御永久 −2' });
 ```
 
 - **何时发**：`onRoundStart` 里时间倒转/游云这类**回合开始被动被触发**时。

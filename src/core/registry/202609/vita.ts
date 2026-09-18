@@ -27,26 +27,26 @@ export const vita: CharacterDef = {
     ctx.defUp(ctx.self, 3, 'temp', 1, '变身');
     ctx.attack({ kind: 'attack', base: ctx.self.curAtk, label: '蔽羽遮天' });
     ctx.self.vars.super = 1; // 变身标记
-    ctx.emit({ type: 'stacks', kind: '变身', delta: 1, total: 1 });
+    ctx.emitFor(ctx.self, { type: 'stacks', kind: '变身', delta: 1, total: 1 });
   },
   // 被动技能
   onDamaged(ctx, _) {
     if (ctx.rng.chance(0.35) && ctx.target.isAlive) {
-      ctx.block(ctx.target, '魅惑', 2, 'active');
+      ctx.block(ctx.self, '魅惑', 2, 'active');
     }
   },
   // 主动技能
   onSettle(ctx) {
     if (ctx.self.vars.super && ctx.self.vars.super > 0) {
       ctx.self.vars.super = 0;
-      ctx.emit({ type: 'stacks', kind: '变身', delta: -1, total: 0 });
+      ctx.emitFor(ctx.self, { type: 'stacks', kind: '变身', delta: -1, total: 0 });
       ctx.block(ctx.self, '变身结束', 1, 'action');
     }
   },
   // 被动技能
   onLethal(ctx) {
     if (ctx.rng.chance(0.15)) {
-      ctx.heal(ctx.self.maxHp * 0.2);
+      ctx.heal(ctx.target.maxHp * 0.2, ctx.target);
       return true;
     } else {
       return false;

@@ -22,7 +22,7 @@ export const dreamer: CharacterDef = {
     const s = ctx.self.pushSnapshot(4) as ActorState;
 
     if (ctx.self.hp < ctx.self.maxHp * 0.25) {
-      ctx.emit({ type: 'passiveTrigger', label: '时序之力' });
+      ctx.emitFor(ctx.self, { type: 'passiveTrigger', label: '时序之力' });
       ctx.self.restore(s);
       ctx.defDown(ctx.self, 4, 'perm');
     }
