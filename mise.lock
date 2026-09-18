@@ -131,5 +131,6 @@ provenance = "github-attestations"
 
 [[tools.prettier]]
 version = "3.9.7"
+aube = { path = ".mise/locks/prettier/3.9.7", digest = "sha256:16353a3bf3d1a9d5be39e167b2490ea3aafb79069a569184f3867e372da6cceb" }
 backend = "npm:prettier"
 specifiers = ["latest"]
