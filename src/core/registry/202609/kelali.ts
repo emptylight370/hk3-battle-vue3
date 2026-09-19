@@ -32,18 +32,7 @@ export const kelali: CharacterDef = {
       ctx.block(ctx.target, '眩晕', 2, 'action');
     }
     if (!atk1.missed && !atk1.killed) {
-      const atk2 = ctx.attack({ kind: 'attack', base: 15, label: '别怕，只是打个哈欠' });
-      if (ctx.rng.chance(0.25)) {
-        ctx.emitFor(ctx.self, { type: 'proc', kind: 'passive', label: '来，睡个好觉' });
-        ctx.block(ctx.target, '眩晕', 2, 'action');
-      }
-      if (!atk2.missed && !atk2.killed) {
-        ctx.attack({ kind: 'attack', base: 15, label: '别怕，只是打个哈欠' });
-        if (ctx.rng.chance(0.25)) {
-          ctx.emitFor(ctx.self, { type: 'proc', kind: 'passive', label: '来，睡个好觉' });
-          ctx.block(ctx.target, '眩晕', 2, 'action');
-        }
-      }
+      ctx.attack({ kind: 'attack', base: 15, label: '别怕，只是打个哈欠', hits: 2 });
     }
   },
 };

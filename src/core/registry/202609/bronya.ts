@@ -25,8 +25,7 @@ export const bronya: CharacterDef = {
   normalAttack(ctx) {
     if (ctx.opponentMark('标记')) {
       ctx.emitFor(ctx.self, { type: 'proc', kind: 'passive', label: '力场，解构！' });
-      ctx.attack({ kind: 'attack', base: ctx.self.curAtk, label: '普攻' });
-      ctx.attack({ kind: 'attack', base: ctx.self.curAtk, label: '普攻' });
+      ctx.attack({ kind: 'attack', base: ctx.self.curAtk, label: '普攻', hits: 2 });
     } else {
       ctx.attack({ kind: 'attack', base: ctx.self.curAtk, label: '普攻' });
     }

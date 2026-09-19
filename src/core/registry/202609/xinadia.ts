@@ -29,14 +29,15 @@ export const xinadia: CharacterDef = {
   },
   // 主动技能
   activeSkill(ctx) {
+    let hits = 0;
     for (let i = 0; i < 3; i++) {
       if (ctx.rng.chance(0.2)) {
-        ctx.emitFor(ctx.self, { type: 'proc', kind: 'passive', label: '魔法陨石' });
-        ctx.attack({ kind: 'attack', base: ctx.self.curAtk + 10, label: '梦中的流星雨' });
-        ctx.atkUp(ctx.self, 1, 'perm');
-      } else {
-        ctx.attack({ kind: 'attack', base: ctx.self.curAtk, label: '梦中的流星雨' });
+        hits += 1;
       }
     }
+    const atks = ctx.self.curAtk * 3 + hits * 10;
+    if (hits > 0) ctx.emitFor(ctx.self, { type: 'proc', kind: 'passive', label: '魔法陨石' });
+    ctx.attack({ kind: 'attack', base: atks, label: '梦中的流星雨' });
+    if (hits > 0) ctx.atkUp(ctx.self, hits, 'perm');
   },
 };
