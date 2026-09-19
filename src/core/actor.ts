@@ -21,6 +21,7 @@ export class Actor {
   defBase = 0;
   speed = 0;
   activeInterval = 0;
+  comment = '';
 
   // 通用流程状态（引擎/管线读写）
   hp = 0;

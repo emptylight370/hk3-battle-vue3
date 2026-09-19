@@ -18,6 +18,7 @@ export interface ActorPanel {
   atk: number;
   def: number;
   speed: number;
+  comment?: string; // 可选备注（仅查看面板展示，不参与战斗逻辑与快照）
 }
 
 // 角色状态（通用标记槽：数据挂目标身上，语义归施加者钩子独占）

@@ -50,6 +50,11 @@ const varsEntries = computed(() => Object.entries(def.value?.vars ?? {}));
               </el-descriptions-item>
             </el-descriptions>
           </template>
+
+          <template v-if="def.comment">
+            <el-divider content-position="left">备注（comment）</el-divider>
+            <el-text size="small">{{ def.comment }}</el-text>
+          </template>
         </template>
       </div>
     </el-collapse-transition>
