@@ -32,7 +32,8 @@ export const kelali: CharacterDef = {
       ctx.block(ctx.target, '眩晕', 2, 'action');
     }
     if (!atk1.missed && !atk1.killed) {
-      ctx.attack({ kind: 'attack', base: 15, label: '别怕，只是打个哈欠', hits: 2 });
+      ctx.attack({ kind: 'attack', base: 15, label: '别怕，只是打个哈欠' });
+      ctx.attack({ kind: 'attack', base: 15, label: '别怕，只是打个哈欠' });
     }
   },
 };

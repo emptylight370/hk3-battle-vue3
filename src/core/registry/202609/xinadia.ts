@@ -35,9 +35,9 @@ export const xinadia: CharacterDef = {
         hits += 1;
       }
     }
-    const atks = ctx.self.curAtk * 3 + hits * 10;
+    const atks = ctx.self.curAtk * 3 + hits * 10 - ctx.target.curDef * 2;
     if (hits > 0) ctx.emitFor(ctx.self, { type: 'proc', kind: 'passive', label: '魔法陨石' });
-    ctx.attack({ kind: 'attack', base: atks, label: '梦中的流星雨' });
+    ctx.attack({ kind: 'attack', base: atks, label: '梦中的流星雨', hits: 3 });
     if (hits > 0) ctx.atkUp(ctx.self, hits, 'perm');
   },
 };
