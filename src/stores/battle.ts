@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia';
 import { computed, ref, watch } from 'vue';
 
-import { listCharacters } from '@/core/registry';
+import { listCharacters, VERSIONS, type VersionTag } from '@/core/registry';
 import type { BatchResult } from '@/core/types';
 import { runBatch } from '@/workers/batchClient';
 
@@ -12,16 +12,20 @@ import { runBatch } from '@/workers/batchClient';
 // - 只 import batchClient / registry/index.ts / core/types；
 // - 引擎跑在 Worker 线程，store 只做协议状态机：
 //   idle → running（含进度）→ done / error。
+// - 选择即携带版本（p1Version/p2Version）：调用时精确命中
+//   前端选中的版本，不因新版本覆盖而调错。
 // ============================================================
 
 // ---------- 表单持久化（localStorage；运行状态不落盘） ----------
 
-const PERSIST_KEY = 'battle.form.v1';
+const PERSIST_KEY = 'battle.form.v2'; // v2：+p1Version/p2Version（v1 旧数据自然失效）
 
-/** 持久化的表单字段（版本键 v1：字段结构变更时升版本，旧数据自然失效） */
+/** 持久化的表单字段 */
 interface PersistedForm {
   p1Id?: string;
+  p1Version?: string;
   p2Id?: string;
+  p2Version?: string;
   count?: number;
   seed?: number;
   randomMode?: boolean;
@@ -50,9 +54,13 @@ function restoreForm(): Required<PersistedForm> {
   const characters = listCharacters();
   const isStr = (v: unknown): v is string => typeof v === 'string';
   const isNum = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v);
+  // 版本必须是已注册版本号，否则回退默认（防止还原出未注册版本导致调用失败）
+  const isVersion = (v: unknown): v is VersionTag => isStr(v) && (VERSIONS as readonly string[]).includes(v);
   return {
     p1Id: isStr(s.p1Id) ? s.p1Id : (characters[0]?.id ?? ''),
+    p1Version: isVersion(s.p1Version) ? s.p1Version : (characters[0]?.version as VersionTag),
     p2Id: isStr(s.p2Id) ? s.p2Id : (characters[1]?.id ?? ''),
+    p2Version: isVersion(s.p2Version) ? s.p2Version : (characters[1]?.version as VersionTag),
     count: isNum(s.count) && s.count > 0 ? s.count : 1000,
     seed: isNum(s.seed) && s.seed >= 0 ? s.seed : 42,
     randomMode: s.randomMode === true,
@@ -65,17 +73,21 @@ export const useBattleStore = defineStore('battle', () => {
   const characters = listCharacters();
   const saved = restoreForm();
   const p1Id = ref(saved.p1Id);
+  const p1Version = ref(saved.p1Version);
   const p2Id = ref(saved.p2Id);
+  const p2Version = ref(saved.p2Version);
   const count = ref(saved.count);
   const seed = ref(saved.seed);
   const logFirst = ref(saved.logFirst); // 首场携带事件流（时间轴数据源）
   const randomMode = ref(saved.randomMode); // 种子随机模式：运行时自动生成随机种子，忽略输入框值
 
   // 表单任一字段变化即持久化（浅监听各 ref；写入失败静默）
-  watch([p1Id, p2Id, count, seed, randomMode, logFirst], () => {
+  watch([p1Id, p1Version, p2Id, p2Version, count, seed, randomMode, logFirst], () => {
     saveForm({
       p1Id: p1Id.value,
+      p1Version: p1Version.value,
       p2Id: p2Id.value,
+      p2Version: p2Version.value,
       count: count.value,
       seed: seed.value,
       randomMode: randomMode.value,
@@ -127,7 +139,9 @@ export const useBattleStore = defineStore('battle', () => {
       result.value = await runBatch(
         {
           p1: p1Id.value,
+          p1Version: p1Version.value,
           p2: p2Id.value,
+          p2Version: p2Version.value,
           count: count.value,
           seed: usedSeed,
           logFirst: logFirst.value,
@@ -147,7 +161,9 @@ export const useBattleStore = defineStore('battle', () => {
     // 表单
     characters,
     p1Id,
+    p1Version,
     p2Id,
+    p2Version,
     count,
     seed,
     logFirst,

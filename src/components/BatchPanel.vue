@@ -67,10 +67,15 @@ const bars = computed(() => {
         <span class="hint">首场（seed 本身）携带事件流，用于时间轴</span>
       </el-form-item>
       <el-form-item>
-        <el-button type="primary" :loading="store.running" :disabled="store.p1Id === store.p2Id" @click="store.run()">
+        <el-button
+          type="primary"
+          :loading="store.running"
+          :disabled="store.p1Id === store.p2Id && store.p1Version === store.p2Version"
+          @click="store.run()"
+        >
           {{ store.running ? '对局中…' : '开始批量对局' }}
         </el-button>
-        <span v-if="store.p1Id === store.p2Id" class="hint">双方不能相同</span>
+        <span v-if="store.p1Id === store.p2Id && store.p1Version === store.p2Version" class="hint">双方不能相同</span>
       </el-form-item>
     </el-form>
 

@@ -109,6 +109,8 @@ export interface BattleResult {
 export interface BatchRequest {
   p1: string; // 角色 id
   p2: string; // 角色 id
+  p1Version?: string; // p1 所属版本（注册表 VERSIONS 之一）；缺省 = 聚合表最新优先
+  p2Version?: string; // p2 所属版本；提供时精确命中该版本，不因新版本覆盖而调错
   count: number;
   seed: number;
   logFirst?: boolean; // 首场携带完整事件流（单场带日志按需）

@@ -6,10 +6,15 @@ import type { CharacterDef } from './types';
  *
  * 版本化规则：
  * - 角色按版本目录存放（如 202609/），目录名即版本号；
- * - 聚合时按版本顺序展开，同名 id 由较新版本覆盖（后展开优先）；
- * - UI 不得 import 具体版本目录下的文件，只消费本文件导出的聚合表。
+ * - VERSIONS 升序排列，用于确定版本先后顺序；
+ * - 注册条目（ENTRIES）在注册时即标定所属版本；
+ * - **前端显示不覆盖**：listCharacters 按版本号降序排列（最新在前），
+ *   同名 id 的不同版本共存于列表，由版本标签辅助区分；
+ * - 按 id 调用（getCharacter / CHARACTERS）仍是"最新版本优先"——
+ *   旧版本数据请用 getCharacterIn 钉死版本（回归测试用）；
+ * - UI 不得 import 具体版本目录下的文件，只消费本文件导出的 API。
  */
-/** 已注册的版本号（升序排列）；聚合时较新版本覆盖同名 id */
+/** 已注册的版本号（升序排列，用于确定版本顺序） */
 export const VERSIONS = ['202609'] as const;
 export type VersionTag = (typeof VERSIONS)[number];
 /** 最新版本号（UI 默认展示用） */
@@ -19,10 +24,21 @@ const TABLES: Record<VersionTag, Record<string, CharacterDef>> = {
   '202609': CHARACTERS_202609,
 };
 
-/** 聚合角色表（新版本覆盖同名 id） */
+/** 注册条目：注册时即标定所属版本 */
+interface CharacterEntry {
+  def: CharacterDef;
+  version: VersionTag;
+}
+
+/** 注册条目表（同 id 跨版本共存，不覆盖） */
+const ENTRIES: CharacterEntry[] = VERSIONS.flatMap((version) =>
+  Object.values(TABLES[version]).map((def) => ({ def, version })),
+);
+
+/** 聚合角色表（按 id 调用：同名 id 由较新版本覆盖；显示场景请用 listCharacters） */
 export const CHARACTERS: Record<string, CharacterDef> = Object.assign({}, ...VERSIONS.map((v) => TABLES[v]));
 
-/** 按 id 取角色定义，未注册时抛错（fail fast，防止 UI 静默空白） */
+/** 按 id 取角色定义（最新版本优先），未注册时抛错（fail fast，防止 UI 静默空白） */
 export function getCharacter(id: string): CharacterDef {
   const def = CHARACTERS[id];
   if (!def) throw new Error(`未注册的角色 id: ${id}`);
@@ -43,13 +59,14 @@ export function getCharacterIn(version: VersionTag, id: string): CharacterDef {
   return def;
 }
 
-/** 供 UI 角色选择器渲染的列表（带版本标签） */
+/**
+ * 供 UI 角色选择器渲染的列表（带版本标签）。
+ *
+ * - **版本号降序**（最新版本在前）；
+ * - **同名 id 不覆盖**：不同版本的同名角色共存于列表，由 version 区分。
+ */
 export function listCharacters(): { id: string; name: string; version: VersionTag }[] {
-  return VERSIONS.flatMap((version) =>
-    Object.values(TABLES[version]).map((def) => ({
-      id: def.id,
-      name: def.name,
-      version,
-    })),
-  );
+  return ENTRIES.slice()
+    .sort((a, b) => VERSIONS.indexOf(b.version) - VERSIONS.indexOf(a.version))
+    .map(({ def, version }) => ({ id: def.id, name: def.name, version }));
 }

@@ -59,6 +59,13 @@ describe('batch — 基本协议', () => {
   it('未知角色 id 抛错（fail fast）', () => {
     expect(() => batch(req({ p2: 'nobody' }))).toThrow(/未注册/);
   });
+
+  it('带版本调用：精确命中该版本，不回退聚合表', () => {
+    // 当前仅 202609 一个版本：带正确版本 = 正常；带未注册版本 = 抛错（证明版本确实参与解析）
+    const r = batch(req({ count: 3, seed: 1, p1Version: '202609', p2Version: '202609' }));
+    expect(r.p1Win + r.p2Win + r.draw).toBe(3);
+    expect(() => batch(req({ count: 1, p1Version: '19990101' }))).toThrow(/19990101/);
+  });
 });
 
 describe('batch — 确定性与 seed 派生', () => {

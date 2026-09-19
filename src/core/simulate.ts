@@ -1,6 +1,6 @@
 import { createActor } from './actor';
 import { Battle } from './engine';
-import { getCharacter } from './registry';
+import { getCharacter, getCharacterIn, type VersionTag } from './registry';
 import type { BatchRequest, BatchResult, BattleResult } from './types';
 
 // ============================================================
@@ -13,11 +13,19 @@ import type { BatchRequest, BatchResult, BattleResult } from './types';
 //    大批量无内存压力；logFirst 时仅保留第 0 场的事件流。
 // 3. 纯同步纯函数：不碰 Worker / Vue，Worker 只是它的薄包装，
 //    Node 测试环境可直接单测。
+// 4. 角色解析：带版本时精确命中该版本（getCharacterIn，不回退）——
+//    前端选的是哪个版本就调用哪个版本，不因新版本覆盖而调错；
+//    缺省版本时按聚合表最新优先。
 // ============================================================
 
-/** 运行单场对局（按注册表 id 构建，未注册即抛错） */
-export function runOne(p1Id: string, p2Id: string, seed: number): BattleResult {
-  const battle = new Battle(createActor(getCharacter(p1Id)), createActor(getCharacter(p2Id)), seed);
+/** 按版本解析角色定义：version 缺省 = 聚合表最新优先 */
+function resolve(id: string, version?: string) {
+  return version ? getCharacterIn(version as VersionTag, id) : getCharacter(id);
+}
+
+/** 运行单场对局（按注册表 id + 可选版本构建，未注册即抛错） */
+export function runOne(p1Id: string, p2Id: string, seed: number, p1Version?: string, p2Version?: string): BattleResult {
+  const battle = new Battle(createActor(resolve(p1Id, p1Version)), createActor(resolve(p2Id, p2Version)), seed);
   return battle.run();
 }
 
@@ -36,7 +44,7 @@ export function batch(req: BatchRequest, onProgress?: (done: number, total: numb
   };
 
   for (let i = 0; i < req.count; i++) {
-    const r = runOne(req.p1, req.p2, req.seed + i);
+    const r = runOne(req.p1, req.p2, req.seed + i, req.p1Version, req.p2Version);
     if (r.outcome === 'p1') result.p1Win++;
     else if (r.outcome === 'p2') result.p2Win++;
     else result.draw++;

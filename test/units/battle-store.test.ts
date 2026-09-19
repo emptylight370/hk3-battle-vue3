@@ -48,7 +48,9 @@ describe('battle store — run() 状态机', () => {
     expect(mockRunBatch).toHaveBeenCalledOnce();
     expect(mockRunBatch.mock.calls[0]![0]).toMatchObject({
       p1: s.p1Id,
+      p1Version: s.p1Version,
       p2: s.p2Id,
+      p2Version: s.p2Version,
       count: 1000,
       seed: 42,
       logFirst: true,
