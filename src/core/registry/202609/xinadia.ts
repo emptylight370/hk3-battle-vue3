@@ -16,6 +16,8 @@ export const xinadia: CharacterDef = {
   def: 7,
   speed: 25,
   activeInterval: 3,
+  comment:
+    '主动技聚合公式已按官方日志校准（vita 对局 R3=32/R6=24）：\n攻击力x3 + 陨石次数x11 - 敌方防御x2，受击时管线再扣一次防御（共3次）\n陨石的+11 = 额外10点伤害 + 自身perm+1计入本波',
   // 被动技能
   normalAttack(ctx) {
     if (ctx.rng.chance(0.2)) {
@@ -35,8 +37,8 @@ export const xinadia: CharacterDef = {
         hits += 1;
       }
     }
-    const atks = ctx.self.curAtk * 3 + hits * 10 - ctx.target.curDef * 2;
-    if (hits > 0) ctx.emitFor(ctx.self, { type: 'proc', kind: 'passive', label: '魔法陨石' });
+    const atks = ctx.self.curAtk * 3 + hits * 11 - ctx.target.curDef * 2;
+    if (hits > 0) ctx.emitFor(ctx.self, { type: 'proc', kind: 'passive', label: `魔法陨石（${hits} 次）` });
     ctx.attack({ kind: 'attack', base: atks, label: '梦中的流星雨', hits: 3 });
     if (hits > 0) ctx.atkUp(ctx.self, hits, 'perm');
   },
