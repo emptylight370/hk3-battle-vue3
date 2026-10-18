@@ -2,13 +2,19 @@
 
 本项目实现了一个崩坏三擂台活动的模拟器，基于 vite 与 Vue3 实现。
 
-## 本地开发
+## 运行
+
+### 本地开发
 
 ```bash
 pnpm install
 pnpm dev
 pnpm test
 ```
+
+### 在线预览
+
+在 [cnb](https://cnb.cool/emptylight370/hk3-battle-vue3) 上点击预览按钮，通过平台启动在线服务。可能需要先克隆仓库到自己的组织下才能预览。
 
 ## 数据
 
