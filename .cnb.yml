@@ -1,0 +1,13 @@
+# .cnb.yml — 云原生开发「仅预览模式」配置
+# 文档: https://docs.cnb.cool/zh/workspaces/only-preview.html
+$:
+  vscode:
+    - docker:
+        image: node:24
+      services:
+        - name: vscode
+          options:
+            # 启用仅预览模式：点击按钮跳过 WebIDE，直接打开业务预览页
+            onlyPreview: true
+            # 启动业务服务的命令，必须监听 8686 端口
+            launch: npm i -g pnpm && pnpm install --frozen-lockfile && pnpm exec vite --port 8686 --host

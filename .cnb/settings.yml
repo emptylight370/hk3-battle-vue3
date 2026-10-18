@@ -1,0 +1,10 @@
+# .cnb/settings.yml — CNB UI 定制
+# 文档: https://docs.cnb.cool/zh/repo/settings-workspace.html
+# 读取云原生启动按钮所在页面当前分支的配置
+workspace:
+  launch:
+    button:
+      # 启动按钮文本
+      name: 打开预览
+      # 按钮描述
+      description: 点击此按钮直接打开业务预览页面
