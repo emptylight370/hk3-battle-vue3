@@ -11,8 +11,13 @@ $:
             onlyPreview: true
             # 启动业务服务的命令，必须监听 8686 端口
             # --allowedHosts .cnb.space：允许 CNB 预览模式分配的动态域名访问
-            launch: npm i -g pnpm && pnpm install --frozen-lockfile && pnpm exec vite --port 8686 --host .cnb.space
+            launch: pnpm exec vite --port 8686 --host .cnb.space
             # 后台长时间运行命令，不会主动退出
             daemon: true
             # 关闭页面后退出时间
             keepAliveTimeout: 30s
+      stages:
+        - name: Setup environment
+          script:
+            - npm i -g pnpm
+            - pnpm install --frozen-lockfile
