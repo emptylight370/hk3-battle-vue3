@@ -25,6 +25,11 @@ export default defineConfig({
       dts: 'src/components.d.ts',
     }),
   ],
+  server: {
+    // CNB 仅预览模式会用 xxx-8686.cnb.space / *.cnb.run 这类动态域名访问 8686，
+    // 主机名不在白名单时 vite 一律 403，这里放行 CNB 预览域名（vite 默认已放行 localhost 与 IP）
+    allowedHosts: ['.cnb.space', '.cnb.run'],
+  },
   resolve: {
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url)),
