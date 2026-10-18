@@ -10,7 +10,8 @@ $:
             # 启用仅预览模式：点击按钮跳过 WebIDE，直接打开业务预览页
             onlyPreview: true
             # 启动业务服务的命令，必须监听 8686 端口
-            launch: npm i -g pnpm && pnpm install --frozen-lockfile && pnpm exec vite --port 8686 --host
+            # --allowedHosts .cnb.space：允许 CNB 预览模式分配的动态域名访问
+            launch: npm i -g pnpm && pnpm install --frozen-lockfile && pnpm exec vite --port 8686 --host --allowedHosts .cnb.space
             # 后台长时间运行命令，不会主动退出
             daemon: true
             # 关闭页面后退出时间
