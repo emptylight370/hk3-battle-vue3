@@ -9,11 +9,16 @@ $:
           options:
             # 启用仅预览模式：点击按钮跳过 WebIDE，直接打开业务预览页
             onlyPreview: true
-            # 依赖已由下面 stages 的 setup 阶段装好，这里只负责起服务，不再串安装命令
+            # 实测：stages 在 launch 之后才执行，依赖安装不能放 stages，
+            # 必须串在 launch 内、vite 之前
             # - --host 0.0.0.0：监听全部网卡，平台才能从容器外探测到 8686
+            # - --strictPort：8686 被占用时报错退出，而不是顺延端口导致检测失败
             # - 预览域名白名单在 vite.config.ts 的 server.allowedHosts 里配置
             launch: npm i -g pnpm && pnpm install --frozen-lockfile && pnpm exec vite --port 8686 --host 0.0.0.0 --strictPort
-            # vite 以后台进程形式常驻，launch 不会自行退出，必须开 daemon
+            # vite 常驻前台，launch 不会自行退出，必须 detach 后台执行；
+            # 平台随即轮询 8686（每 10s 一次，约 200s 上限），就绪后打开预览页
             daemon: true
-            # 关闭页面后退出时间
+            # 离线保活时间：页面打开期间连接持续存在、不计入；
+            # 计时从关闭预览页面后开始，超时无连接才关闭环境
+            # （回收机制文档：workspace-recycling，"打开页面后关闭，超时无操作→回收"）
             keepAliveTimeout: 30s
