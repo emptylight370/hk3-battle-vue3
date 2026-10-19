@@ -16,6 +16,7 @@ export const kiana: CharacterDef = {
   def: 8,
   speed: 23,
   activeInterval: 2,
+  comment: '鼓乐喧天被丽塔闪避的话，后面那段真伤跟着一起跳过（真伤本身不吃闪避）',
   // 主动技能
   activeSkill(ctx) {
     const result = ctx.attack({ kind: 'attack', base: 20, label: '鼓乐喧天' });

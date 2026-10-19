@@ -16,6 +16,8 @@ export const rita: CharacterDef = {
   def: 8,
   speed: 21,
   activeInterval: 2,
+  comment:
+    '闪避判定粒度：闪避挂在单次攻击事件上，beforeHit 每次 ctx.attack 只判一次——\n一次攻击的 hits 多段伤害整体判定一次闪避，不会逐段重复判定；\n用多次独立 ctx.attack 实现的分段（如科拉莉点燃）则每段各判一次',
   // 主动技能
   activeSkill(ctx) {
     ctx.attack({ kind: 'attack', base: 18, label: '幽影收割' });

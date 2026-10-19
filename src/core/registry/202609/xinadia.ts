@@ -17,7 +17,7 @@ export const xinadia: CharacterDef = {
   speed: 25,
   activeInterval: 3,
   comment:
-    '主动技聚合公式已按官方日志校准（vita 对局 R3=32/R6=24）：\n攻击力x3 + 陨石次数x11 - 敌方防御x2，受击时管线再扣一次防御（共3次）\n陨石的+11 = 额外10点伤害 + 自身perm+1计入本波',
+    '主动技聚合公式已按官方日志校准（vita 对局 R3=32/R6=24）：\n攻击力x3 + 陨石次数x11 - 敌方防御x2，受击时管线再扣一次防御（共3次）\n陨石的+11 = 额外10点伤害 + 自身perm+1计入本波\n\n闪避判定：3 波碎片合并成一次攻击事件（hits: 3），丽塔的闪避整次只判一回，不逐波闪',
   // 被动技能
   normalAttack(ctx) {
     if (ctx.rng.chance(0.2)) {

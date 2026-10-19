@@ -16,6 +16,7 @@ export const kelali: CharacterDef = {
   def: 6,
   speed: 21,
   activeInterval: 3,
+  comment: '点燃两下是独立攻击事件，丽塔闪避每段各判各的；主段被闪避/击杀则不接点燃',
   // 被动技能
   normalAttack(ctx) {
     ctx.attack({ kind: 'attack', base: ctx.self.curAtk, label: '普攻' });

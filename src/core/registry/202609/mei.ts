@@ -18,6 +18,7 @@ export const mei: CharacterDef = {
   def: 8,
   speed: 24,
   activeInterval: 1,
+  comment: '真伤走 pierce 天然不吃丽塔闪避，只有主段攻击参与闪避判定',
   vars: {
     blade: 0,
   },

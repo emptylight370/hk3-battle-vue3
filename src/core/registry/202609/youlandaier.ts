@@ -16,6 +16,7 @@ export const youlandaier: CharacterDef = {
   def: 11,
   speed: 22,
   activeInterval: 2,
+  comment: '额外触发的那次攻击是独立攻击事件，丽塔闪避跟主段各判各的',
   // 被动技能
   normalAttack(ctx) {
     ctx.attack({ kind: 'attack', base: ctx.self.curAtk, label: '普攻' });

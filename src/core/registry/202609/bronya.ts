@@ -21,6 +21,7 @@ export const bronya: CharacterDef = {
   vars: {
     shieldExpand: 0,
   },
+  comment: '标记后普攻双次需要在一次攻击内生效双次，因此需要在单次攻击事件中计算双次伤害',
   // 被动技能
   normalAttack(ctx) {
     if (ctx.opponentMark('标记')) {
