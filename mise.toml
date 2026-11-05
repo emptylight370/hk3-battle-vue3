@@ -1,6 +1,6 @@
 [tools]
 lefthook = "latest"
-node = "24"
+node = "26"
 pnpm = "latest"
 prettier = "latest"
 
